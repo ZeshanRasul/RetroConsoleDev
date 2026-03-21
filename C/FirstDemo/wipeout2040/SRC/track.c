@@ -1,5 +1,6 @@
 #include "track.h"
 #include "inline_n.h"
+#include "texture.h"
 
 #define BYTES_PER_VERTEX    16
 #define BYTES_PER_FACE      20
@@ -36,12 +37,13 @@ void LoadTrackVertices(Track *track, char *filename)
     free(bytes);
 }
 
-void LoadTrackFaces(Track *track, char *filename)
+void LoadTrackFaces(Track *track, char *filename, u_short texturestart)
 {
     u_long i;
     u_long b;
     u_long length;
     u_char *bytes;
+    Texture *texture;
 
     bytes = (u_char*) FileRead(filename, &length);
 
@@ -76,6 +78,34 @@ void LoadTrackFaces(Track *track, char *filename)
         face->color.g = GetChar(bytes, &b);
         face->color.b = GetChar(bytes, &b);
         face->color.cd = GetChar(bytes, &b);
+
+        face->texture += texturestart;
+        texture = GetFromTextureStore(face->texture);
+        face->tpage = texture->tpage;
+        face->clut = texture->clut;
+
+        if (face->flags & FACE_FLIP_TEXTURE)
+        {
+            face->u0 = texture->u1;
+            face->v0 = texture->v1;
+            face->u1 = texture->u0;
+            face->v1 = texture->v0;
+            face->u2 = texture->u3;
+            face->v2 = texture->v3;
+            face->u3 = texture->u2;
+            face->v3 = texture->v2;
+        }
+        else
+        {
+            face->u0 = texture->u0;
+            face->v0 = texture->v0;
+            face->u1 = texture->u1;
+            face->v1 = texture->v1;
+            face->u2 = texture->u2;
+            face->v2 = texture->v2;
+            face->u3 = texture->u3;
+            face->v3 = texture->v3;
+        }
     }
     free(bytes);
 }
@@ -134,7 +164,7 @@ void RenderTrackSection(Track *track, Section *section, Camera *camera)
     long otz;
     long p;
     long flg;
-    POLY_F4* poly;
+    POLY_FT4* poly;
     LINE_F2 *line0, *line1, *line2, *line3;
     SVECTOR v0;
     SVECTOR v1;
@@ -186,7 +216,7 @@ void RenderTrackSection(Track *track, Section *section, Camera *camera)
         v3.vy = (short)(track->vertices[face->indices[3]].vy - camera->position.vy);
         v3.vz = (short)(track->vertices[face->indices[3]].vz - camera->position.vz);
 
-        poly = (POLY_F4*) GetNextPrim();
+        poly = (POLY_FT4*) GetNextPrim();
         gte_ldv0(&v0);
         gte_ldv1(&v1);
         gte_ldv2(&v2);
@@ -203,28 +233,15 @@ void RenderTrackSection(Track *track, Section *section, Camera *camera)
         gte_avsz4();
         gte_stotz(&otz);
         if (otz > 0 && otz < OT_LEN) {
-            setPolyF4(poly);
+            setPolyFT4(poly);
 
-            facecolor = (CVECTOR) {255, 255, 255};
-
-            if (face->flags & FACE_FLIP_TEXTURE)
-            {
-                facecolor.r = 80;
-                facecolor.g = 80;
-                facecolor.b = 80;
-            }
-
-            if (face->flags & FACE_SPEED_UP)
-            {
-                facecolor.r = 255;
-                facecolor.g = 0;
-                facecolor.b = 0;
-            }
-
-            setRGB0(poly, facecolor.r, facecolor.g, facecolor.b);
+            setRGB0(poly, face->color.r, face->color.g, face->color.b);
+            poly->tpage = face->tpage;
+            poly->clut = face->clut;
+            setUV4(poly, face->u0, face->v0, face->u1, face->v1, face->u2, face->v2, face->u3, face->v3);
 
             addPrim(GetOTAt(GetCurrBuff(), otz), poly);
-            IncrementNextPrim(sizeof(POLY_F4));
+            IncrementNextPrim(sizeof(POLY_FT4));
         }
     }
 }

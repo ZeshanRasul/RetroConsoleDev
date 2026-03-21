@@ -33,6 +33,7 @@ void Setup(void)
 {
     u_short shipstarttexture;
     u_short scenestarttexture;
+    u_short trackstarttexture;
 
     ScreenInit();
 
@@ -43,15 +44,18 @@ void Setup(void)
     ResetNextPrim(GetCurrBuff());
 
     shipstarttexture = GetTextureCount();
-    LoadObjectCMP("\\ALLSH.CMP;1");
+    LoadTextureCMP("\\ALLSH.CMP;1", NULL);
 
     scenestarttexture = GetTextureCount();
-    LoadObjectCMP("\\TRACK02\\SCENE.CMP;1");
+    LoadTextureCMP("\\TRACK02\\SCENE.CMP;1", NULL);
 
     ships = LoadObjectPRM("\\ALLSH.PRM;1", shipstarttexture);
 
+    trackstarttexture = GetTextureCount();
+    LoadTextureCMP("\\TRACK02\\LIBRARY.CMP;1", "\\TRACK02\\LIBRARY.TTF;1");
+
     LoadTrackVertices(&track, "\\TRACK02\\TRACK.TRV;1");
-    LoadTrackFaces(&track, "\\TRACK02\\TRACK.TRF;1");
+    LoadTrackFaces(&track, "\\TRACK02\\TRACK.TRF;1", trackstarttexture);
     LoadTrackSections(&track, "\\TRACK02\\TRACK.TRS;1");
 
     printf("NUM TRACK VERTICES: %d\n", track.numvertices);

@@ -6,6 +6,11 @@
 static Texture *texturestore[MAX_TEXTURES];
 static u_long texturecount = 0;
 
+static u_short textx = 320;
+static u_short texty = 0;
+static u_short clutx = 320;
+static u_short cluty = 256;
+
 Texture *GetFromTextureStore(u_int i) {
   return texturestore[i];
 }
@@ -14,7 +19,7 @@ u_short GetTextureCount(void) {
   return texturecount;
 }
 
-void LoadObjectCMP(char *filename)
+void LoadTextureCMP(char *filenamecmp, char *filenamettf)
 {
     u_char *bytes;
     u_long length;
@@ -26,16 +31,16 @@ void LoadObjectCMP(char *filename)
     static void *timsbaseaddr;
     static Texture *texture;
 
-    bytes = (u_char*) FileRead(filename, &length);
+    bytes = (u_char*) FileRead(filenamecmp, &length);
 
     if (bytes == NULL)
     {
-        printf("Error reading %s from the CD\n", filename);
+        printf("Error reading %s from the CD\n", filenamecmp);
         return;
     }
     else
     {
-        printf("%d bytes were read from %s\n", length, filename);
+        printf("%d bytes were read from %s\n", length, filenamecmp);
     }
 
     b = 0;
@@ -66,17 +71,57 @@ void LoadObjectCMP(char *filename)
 
     free(bytes);
 
-    for (i = 0; i < numtextures; i++)
+    if (filenamettf == NULL)
     {
-        texture = UploadTextureToVRAM(textureoffsets[i]);
-        if (texture != NULL)
+        for (i = 0; i < numtextures; i++)
         {
-            texturestore[texturecount++] = texture;
+            texture = UploadTextureToVRAM(textureoffsets[i]);
+            if (texture != NULL)
+            {
+                texturestore[texturecount++] = texture;
+            }
+            if (texturecount > MAX_TEXTURES)
+            {
+                printf("Texture store is full!\n");
+            }
         }
-        if (texturecount > MAX_TEXTURES)
+    }
+
+    if (filenamettf != NULL)
+    {
+        Tile *tiles;
+        u_short numtiles;
+        bytes = (u_char*) FileRead(filenamettf, &length);
+        if (bytes == NULL)
         {
-            printf("Texture store is full!\n");
+            printf("Error reading %s from the CD.\n", filenamettf);
+            return;
         }
+        numtiles = length / BYTES_PER_TILE;
+
+        tiles = (Tile*) malloc(numtiles * sizeof(Tile));
+
+        b = 0;
+
+        for (i = 0; i < numtiles; i++)
+        {
+            b += 16 * 2; // Skip hi-res tile indices
+            b += 4 * 2; // Skil mid-res tile indices
+
+            tiles[i].tileindex = GetShortBE(bytes, &b);
+
+            texture = UploadTextureToVRAM(textureoffsets[tiles[i].tileindex]);
+            if (texture != NULL)
+            {
+                texturestore[texturecount++] = texture;
+            }
+            if (texturecount > MAX_TEXTURES)
+            {
+                printf("Texture store is full!\n");
+            }
+        }
+        free(tiles);
+        free(bytes);
     }
 
     free(timsbaseaddr);
@@ -94,6 +139,31 @@ Texture *UploadTextureToVRAM(long timptr) {
       tc4 = (TimClut4*) tim;
       texture = (Texture*) malloc(sizeof(Texture));
       texture->type = CLUT4;
+
+      if (!tc4->textureX && !tc4->textureY)
+      {
+        tc4->textureX = textx;
+        tc4->textureY = texty;
+        tc4->clutX = clutx;
+        tc4->clutY = cluty;
+        tc4->clutW = 16;
+        tc4->clutH = 1;
+
+        clutx += 16;
+        if (clutx >= 384)
+        {
+            clutx = 320;
+            cluty += 1;
+        }
+
+        texty += 32;
+        if (texty >= 256)
+        {
+            textx += 8;
+            texty = 0;
+        }
+      }
+
       texture->textureX = tc4->textureX;
       texture->textureY = tc4->textureY;
       texture->textureW = tc4->textureW;

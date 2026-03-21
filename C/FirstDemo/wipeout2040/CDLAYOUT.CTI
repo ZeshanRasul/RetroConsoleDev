@@ -76,6 +76,16 @@ Disc CDROMXA_PSX
                             XAFileAttributes Form1 Data
                             Source [GameDir]\ASSETS\TRACK02\TRACK.TRS
                         EndFile
+
+                        File LIBRARY.CMP
+                            XAFileAttributes Form1 Data
+                            Source [GameDir]\ASSETS\TRACK02\LIBRARY.CMP
+                        EndFile
+
+                        File LIBRARY.TTF
+                            XAFileAttributes Form1 Data
+                            Source [GameDir]\ASSETS\TRACK02\LIBRARY.TTF
+                        EndFile
                     EndDirectory
 
 
