@@ -194,34 +194,6 @@ void RenderQuadRecursive(Face *face, SVECTOR *v0, SVECTOR *v1, SVECTOR *v2, SVEC
 
             addPrim(GetOTAt(GetCurrBuff(), otz), poly);
             IncrementNextPrim(sizeof(POLY_FT4));
-
-            line0 = (LINE_F2*) GetNextPrim();
-            setLineF2(line0);
-            setXY2(line0, poly->x0, poly->y0, poly->x1, poly->y1);
-            setRGB0(line0, 255, 255, 0);
-            addPrim(GetOTAt(GetCurrBuff(), 0), line0);
-            IncrementNextPrim(sizeof(LINE_F2));
-
-            line1 = (LINE_F2*) GetNextPrim();
-            setLineF2(line1);
-            setXY2(line1, poly->x1, poly->y1, poly->x3, poly->y3);
-            setRGB0(line1, 255, 255, 0);
-            addPrim(GetOTAt(GetCurrBuff(), 0), line1);
-            IncrementNextPrim(sizeof(LINE_F2));
-
-            line2 = (LINE_F2*) GetNextPrim();
-            setLineF2(line2);
-            setXY2(line2, poly->x3, poly->y3, poly->x2, poly->y2);
-            setRGB0(line2, 255, 255, 0);
-            addPrim(GetOTAt(GetCurrBuff(), 0), line2);
-            IncrementNextPrim(sizeof(LINE_F2));
-
-            line3 = (LINE_F2*) GetNextPrim();
-            setLineF2(line3);
-            setXY2(line3, poly->x2, poly->y2, poly->x0, poly->y0);
-            setRGB0(line3, 255, 255, 0);
-            addPrim(GetOTAt(GetCurrBuff(), 0), line3);
-            IncrementNextPrim(sizeof(LINE_F2));
         }
     }
     else
@@ -246,7 +218,7 @@ void RenderQuadRecursive(Face *face, SVECTOR *v0, SVECTOR *v1, SVECTOR *v2, SVEC
         tum32 = (tu3 + tu2) >> 1; tvm32 = (tv3 + tv2) >> 1;
 
         RenderQuadRecursive(face, v0, &vm01, &vm02, &vm03, tu0, tv0, tum01, tvm01, tum02, tvm02, tum03, tvm03, level + 1, depth); // top-left subquad
-        RenderQuadRecursive(face, &vm01, v1, &vm03, &vm13, tum01, tvm01, tu1, tv1, tum03, tvm03, tum12, tvm13, level + 1, depth); // top-right subquad
+        RenderQuadRecursive(face, &vm01, v1, &vm03, &vm13, tum01, tvm01, tu1, tv1, tum03, tvm03, tum13, tvm13, level + 1, depth); // top-right subquad
         RenderQuadRecursive(face, &vm02, &vm03, v2, &vm32, tum02, tvm02, tum03, tvm03, tu2, tv2, tum32, tvm32, level + 1, depth); // bottom-left subquad
         RenderQuadRecursive(face, &vm03, &vm13, &vm32, v3, tum03, tvm03, tum13, tvm13, tum32, tvm32, tu3, tv3, level + 1, depth); // bottom-right subquad
     }
@@ -312,8 +284,6 @@ void RenderTrackSection(Track *track, Section *section, Camera *camera, u_long d
         if (distmag < 600000) depth = 1;
         if (distmag < 200000) depth = 2;
 
-        printf(depth);
-
         RenderQuadRecursive(face, &v0, &v1, &v2, &v3, face->u0, face->v0, face->u1, face->v1, face->u2, face->v2, face->u3, face->v3, 0, depth);
     }
 }
@@ -341,7 +311,7 @@ void RenderTrack(Track *track, Camera *camera)
         distmagsq = (d.vx * d.vx) + (d.vy * d.vy) + (d.vz * d.vz);
         distmag = SquareRoot12(distmagsq);
 
-        if (distmag < 950000)
+        if (distmag < 1350000)
         {
             RenderTrackSection(track, currsection, camera, distmag);
         }
