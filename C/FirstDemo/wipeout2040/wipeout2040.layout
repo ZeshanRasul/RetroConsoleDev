@@ -22,23 +22,29 @@
 	<File name="SRC\globals.c" open="0" top="0" tabpos="13">
 		<Cursor position="637" topLine="0" />
 	</File>
-	<File name="SRC\globals.h" open="1" top="0" tabpos="4">
+	<File name="SRC\globals.h" open="0" top="0" tabpos="4">
 		<Cursor position="156" topLine="0" />
 	</File>
 	<File name="SRC\lzss.c" open="0" top="0" tabpos="8">
 		<Cursor position="0" topLine="48" />
 	</File>
-	<File name="SRC\lzss.h" open="0" top="0" tabpos="7">
-		<Cursor position="353" topLine="0" />
+	<File name="SRC\lzss.h" open="1" top="0" tabpos="4">
+		<Cursor position="7" topLine="0" />
 	</File>
-	<File name="SRC\main.c" open="1" top="0" tabpos="2">
-		<Cursor position="1175" topLine="0" />
+	<File name="SRC\main.c" open="1" top="1" tabpos="5">
+		<Cursor position="2266" topLine="93" />
 	</File>
-	<File name="SRC\object.c" open="0" top="0" tabpos="5">
-		<Cursor position="23555" topLine="598" />
+	<File name="SRC\object.c" open="1" top="0" tabpos="1">
+		<Cursor position="23115" topLine="505" />
 	</File>
 	<File name="SRC\object.h" open="0" top="0" tabpos="4">
 		<Cursor position="104" topLine="15" />
+	</File>
+	<File name="SRC\ship.c" open="1" top="0" tabpos="2">
+		<Cursor position="1555" topLine="21" />
+	</File>
+	<File name="SRC\ship.h" open="1" top="0" tabpos="3">
+		<Cursor position="250" topLine="0" />
 	</File>
 	<File name="SRC\texture.c" open="0" top="0" tabpos="10">
 		<Cursor position="3459" topLine="134" />
@@ -46,8 +52,8 @@
 	<File name="SRC\texture.h" open="0" top="0" tabpos="11">
 		<Cursor position="1611" topLine="58" />
 	</File>
-	<File name="SRC\track.c" open="1" top="1" tabpos="1">
-		<Cursor position="6408" topLine="183" />
+	<File name="SRC\track.c" open="0" top="0" tabpos="1">
+		<Cursor position="6666" topLine="183" />
 	</File>
 	<File name="SRC\track.h" open="0" top="0" tabpos="1">
 		<Cursor position="1133" topLine="19" />
@@ -55,7 +61,7 @@
 	<File name="SRC\utils.c" open="0" top="0" tabpos="12">
 		<Cursor position="1401" topLine="0" />
 	</File>
-	<File name="SRC\utils.h" open="1" top="0" tabpos="3">
+	<File name="SRC\utils.h" open="0" top="0" tabpos="3">
 		<Cursor position="154" topLine="0" />
 	</File>
 	<File name="SYSTEM.TXT" open="0" top="0" tabpos="10">

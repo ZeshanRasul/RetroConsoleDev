@@ -6,6 +6,7 @@
 #include "globals.h"
 #include "utils.h"
 #include "object.h"
+#include "ship.h"
 #include "texture.h"
 #include "track.h"
 #include <stdlib.h>
@@ -15,7 +16,8 @@ Camera camera;
 Track track;
 
 Object *ships;
-Object *ship;
+
+Ship ship;
 
 u_short shipindex = 0;
 
@@ -31,6 +33,7 @@ int holdingleft = 0;
 
 void Setup(void)
 {
+    VECTOR startpos;
     u_short shipstarttexture;
     u_short scenestarttexture;
     u_short trackstarttexture;
@@ -62,11 +65,13 @@ void Setup(void)
     printf("NUM TRACK FACES: %d\n", track.numfaces);
     printf("NUM TRACK SECTIONS: %d\n", track.numsections);
 
-    ship = GetObjectByIndex(ships, shipindex);
+    ship.object = GetObjectByIndex(ships, shipindex);
 
-    setVector(&ship->position, 32599, -347, -45310);
+    setVector(&startpos, 32599, -347, -45310);
 
-    setVector(&camera.position, ship->position.vx, ship->position.vy - 200, ship->position.vz - 800);
+    ShipInit(&ship, &track, &startpos);
+
+    setVector(&camera.position, ship.object->position.vx, ship.object->position.vy - 200, ship.object->position.vz - 800);
     camera.lookat = (MATRIX){0};
     camera.rotmat = (MATRIX){0};
 }
@@ -81,30 +86,53 @@ void Update(void)
 
     if (JoyPadCheck(PAD1_LEFT))
     {
-        camera.position.vx -= 10;
+        ship.object->rotation.vy -= 10;
     }
 
     if (JoyPadCheck(PAD1_RIGHT))
     {
-        camera.position.vx += 10;
+        ship.object->rotation.vy += 10;
     }
 
     if (JoyPadCheck(PAD1_UP))
     {
-        camera.position.vz += 100;
-        ship->position.vz += 100;
+        ship.object->rotation.vx -= 10;
     }
 
     if (JoyPadCheck(PAD1_DOWN))
     {
-        camera.position.vz -= 100;
-        ship->position.vz -= 100;
+        ship.object->rotation.vx += 10;
     }
 
-    LookAt(&camera, &camera.position, &ship->position, &(VECTOR){0, -ONE, 0});
+    if (JoyPadCheck(PAD1_CROSS))
+    {
+        ship.thrustmag += 10;
+    }
+    else if (ship.thrustmag > 0)
+    {
+        ship.thrustmag -= 10;
+    }
+
+    if (ship.thrustmag > ship.thrustmax)
+    {
+        ship.thrustmag = ship.thrustmax;
+    }
+
+    if (ship.thrustmag < 0)
+    {
+        ship.thrustmag = 0;
+    }
+
+    ShipUpdate(&ship);
+
+    camera.position.vx = ship.object->position.vx;
+    camera.position.vy = ship.object->position.vy - 500;
+    camera.position.vz = ship.object->position.vz - 800;
+
+    LookAt(&camera, &camera.position, &ship.object->position, &(VECTOR){0, -ONE, 0});
 
     RenderTrack(&track, &camera);
-    RenderObject(ship, &camera);
+    RenderObject(ship.object, &camera);
 }
 
 void Render(void)
