@@ -358,7 +358,7 @@ typedef struct Object {
     short numprimitives;
     PrimitiveNode *primitives;
 
-    SVECTOR rotation;
+    MATRIX rotmat;
     VECTOR position;
     VECTOR scale;
 

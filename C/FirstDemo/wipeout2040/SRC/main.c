@@ -79,6 +79,7 @@ void Setup(void)
 void Update(void)
 {
     u_short i;
+    VECTOR up = (VECTOR){0, -ONE, 0};
 
     EmptyOT(GetCurrBuff());
 
@@ -86,22 +87,22 @@ void Update(void)
 
     if (JoyPadCheck(PAD1_LEFT))
     {
-        ship.object->rotation.vy -= 10;
+        ship.yaw -= 50;
     }
 
     if (JoyPadCheck(PAD1_RIGHT))
     {
-        ship.object->rotation.vy += 10;
+        ship.yaw += 50;
     }
 
     if (JoyPadCheck(PAD1_UP))
     {
-        ship.object->rotation.vx -= 10;
+        ship.pitch -= 10;
     }
 
     if (JoyPadCheck(PAD1_DOWN))
     {
-        ship.object->rotation.vx += 10;
+        ship.pitch += 10;
     }
 
     if (JoyPadCheck(PAD1_CROSS))
@@ -125,11 +126,11 @@ void Update(void)
 
     ShipUpdate(&ship);
 
-    camera.position.vx = ship.object->position.vx;
-    camera.position.vy = ship.object->position.vy - 500;
-    camera.position.vz = ship.object->position.vz - 800;
+    camera.position.vx = ship.object->position.vx - (ship.forward.vx >> 2) + (up.vx >> 3);
+    camera.position.vy = ship.object->position.vy - (ship.forward.vy >> 2) + (up.vy >> 3);
+    camera.position.vz = ship.object->position.vz - (ship.forward.vz >> 2) + (up.vz >> 3);
 
-    LookAt(&camera, &camera.position, &ship.object->position, &(VECTOR){0, -ONE, 0});
+    LookAt(&camera, &camera.position, &ship.object->position, &up);
 
     RenderTrack(&track, &camera);
     RenderObject(ship.object, &camera);

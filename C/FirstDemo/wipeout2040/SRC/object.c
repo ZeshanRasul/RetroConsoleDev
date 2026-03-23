@@ -429,7 +429,22 @@ Object *LoadObjectPRM(char *filename, u_short starttexture)
           // Populate &object[j]'s initial transform values
             object->position = (VECTOR){object->origin.vx, object->origin.vy, object->origin.vz};
             object->scale    = (VECTOR){ONE, ONE, ONE};
-            object->rotation = (SVECTOR){0, 0, 0};
+
+            object->rotmat.m[0][0] = ONE;
+            object->rotmat.m[1][0] = 0;
+            object->rotmat.m[2][0] = 0;
+
+            object->rotmat.m[0][1] = 0;
+            object->rotmat.m[1][1] = ONE;
+            object->rotmat.m[2][1] = 0;
+
+            object->rotmat.m[0][2] = 0;
+            object->rotmat.m[1][2] = 0;
+            object->rotmat.m[2][2] = ONE;
+
+            object->rotmat.t[0] = 0;
+            object->rotmat.t[1] = 0;
+            object->rotmat.t[2] = 0;
 
             objectcount++;
     }
@@ -445,7 +460,7 @@ void RenderObject(Object *object, Camera *camera) {
   MATRIX worldmat;
   MATRIX viewmat;
 
-  RotMatrix(&object->rotation, &worldmat);
+  worldmat = object->rotmat;
   TransMatrix(&worldmat, &object->position);
   ScaleMatrix(&worldmat, &object->scale);
 
