@@ -87,31 +87,56 @@ void Update(void)
 
     if (JoyPadCheck(PAD1_LEFT))
     {
-        ship.yaw -= 50;
+        if (ship.velyaw <= 0) {
+            ship.velyaw -= 128;
+        } else if (ship.velyaw > 0) {
+            ship.velyaw -= 256;
+        }
+    }   else if (JoyPadCheck(PAD1_RIGHT))
+    {
+        if (ship.velyaw >= 0) {
+            ship.velyaw += 128;
+        } else if (ship.velyaw < 0) {
+            ship.velyaw += 256;
+        }
+    }   else
+    {
+        if (ship.velyaw > 0)
+        {
+            ship.velyaw -= 128;
+        } else if (ship.velyaw < 0)
+        {
+            ship.velyaw += 128;
+        }
     }
 
-    if (JoyPadCheck(PAD1_RIGHT))
+    if (ship->velyaw < -2048)
     {
-        ship.yaw += 50;
+        ship->velyaw = -2048
+    }
+
+    if (ship->velyaw > 2048)
+    {
+        ship->velyaw = 2048
     }
 
     if (JoyPadCheck(PAD1_UP))
     {
-        ship.pitch -= 10;
+        ship.pitch -= 6;
     }
 
     if (JoyPadCheck(PAD1_DOWN))
     {
-        ship.pitch += 10;
+        ship.pitch += 6;
     }
 
     if (JoyPadCheck(PAD1_CROSS))
     {
-        ship.thrustmag += 10;
+        ship.thrustmag += 6500;
     }
     else if (ship.thrustmag > 0)
     {
-        ship.thrustmag -= 10;
+        ship.thrustmag -= 12000;
     }
 
     if (ship.thrustmag > ship.thrustmax)

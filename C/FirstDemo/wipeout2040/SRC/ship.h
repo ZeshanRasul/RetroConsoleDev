@@ -20,9 +20,9 @@ typedef struct Ship {
     short accyaw, accpitch, accroll;
 
     short mass;
-    short speed;
-    short thrustmag;
-    short thrustmax;
+    long speed;
+    long thrustmag;
+    long thrustmax;
 
     VECTOR forward;
     VECTOR up;

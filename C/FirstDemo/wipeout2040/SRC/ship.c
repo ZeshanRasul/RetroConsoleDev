@@ -27,7 +27,7 @@ void ShipInit(Ship *ship, Track *track, VECTOR *startpos)
 
     ship->speed = 0;
     ship->thrustmag = 0;
-    ship->thrustmax = 700;
+    ship->thrustmax = 450000;
 
     ship->mass = 150;
 }
@@ -60,9 +60,9 @@ void ShipUpdate(Ship *ship)
     ship->forward.vy = (-sinx);
     ship->forward.vz = (cosy * cosx) >> 12;
 
-    ship->thrust.vx = (ship->thrustmag * ship->forward.vx) >> 6;
-    ship->thrust.vy = (ship->thrustmag * ship->forward.vy) >> 6;
-    ship->thrust.vz = (ship->thrustmag * ship->forward.vz) >> 6;
+    ship->thrust.vx = (ship->thrustmag * ship->forward.vx) >> 12;
+    ship->thrust.vy = (ship->thrustmag * ship->forward.vy) >> 12;
+    ship->thrust.vz = (ship->thrustmag * ship->forward.vz) >> 12;
 
     ship->speed = SquareRoot0(ship->vel.vx * ship->vel.vx + ship->vel.vy * ship->vel.vy + ship->vel.vz * ship->vel.vz);
 
@@ -90,6 +90,10 @@ void ShipUpdate(Ship *ship)
     ship->object->position.vx += ship->vel.vx >> 6;
     ship->object->position.vy += ship->vel.vy >> 6;
     ship->object->position.vz += ship->vel.vz >> 6;
+
+    ship->yaw += ship->velyaw >> 6;
+    ship->pitch += ship->velpitch;
+    ship->roll += ship->velroll;
 
     ship->object->rotmat.m[0][0] = ship->right.vx;
     ship->object->rotmat.m[1][0] = ship->right.vy;

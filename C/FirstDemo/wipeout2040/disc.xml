@@ -1,4 +1,4 @@
-<iso_project image_name="WIPEOUT2040.0.12.bin" cue_sheet="WIPEOUT2040.0.12.cue" no_xa="0">
+<iso_project image_name="WIPEOUT2040.0.14.bin" cue_sheet="WIPEOUT2040.0.14.cue" no_xa="0">
   <track type="data" xa_edc="true" new_type="false">
     <directory_tree>
       <file name="SYSTEM.CNF" type="data" source="SYSTEM.CNF"/>
