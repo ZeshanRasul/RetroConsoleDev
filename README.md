@@ -20,3 +20,7 @@ Not only is this an exciting project from a nostalgia perspective, most importan
 ![Wipeout Sophia Ship Textured and Rendered](./Docs/Images/Wipeout-Ship_Textured3.png)
 
 Figures 1-4: The same FEISAR Sofia ship model used by the Wipeout devs textured and rendered in my Wipeout clone. Working on both PS1 hardware and emulators. (Screenshots taken in emulator)
+
+![Wipeout Sofia Ship on Track in Starting Position Textured and Rendered](./Docs/Images/Wipeout-Ship-Track-Textured.png)
+
+Figure 5: Wipeout Sofia ship model in starting position on textured and chunk loaded track.
