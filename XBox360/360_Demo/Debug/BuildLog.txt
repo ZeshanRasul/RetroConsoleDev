@@ -1,0 +1,23 @@
+﻿Build started 24/04/2026 02:49:11.
+     1>Project "C:\dev\360Dev\360_Demo\360_Demo\360_Demo.vcxproj" on node 2 (build target(s)).
+     1>InitializeBuildStatus:
+         Creating "Debug\360_Demo.unsuccessfulbuild" because "AlwaysCreate" was specified.
+       ClCompile:
+         C:\Program Files (x86)\Microsoft Xbox 360 SDK\bin\win32\CL.exe /c /Zi /nologo /W3 /WX- /Od /D _DEBUG /D _XBOX /GF- /Gm /MTd /GS- /Gy- /fp:fast /fp:except- /Zc:wchar_t /Zc:forScope /GR- /openmp- /Fo"Debug\\" /Fd"Debug\vc100.pdb" /TP Demo.cpp /callcap /FI"C:\Program Files (x86)\Microsoft Xbox 360 SDK\\include\xbox\xbox_intellisense_platform.h"
+         Demo.cpp
+       Link:
+         C:\Program Files (x86)\Microsoft Xbox 360 SDK\bin\win32\link.exe /ERRORREPORT:PROMPT /OUT:"C:\dev\360Dev\360_Demo\360_Demo\Debug\360_Demo.exe" /INCREMENTAL /NOLOGO xapilibd.lib d3d9d.lib d3dx9d.lib xgraphicsd.lib xboxkrnl.lib xnetd.lib xaudiod2.lib xactd3.lib x3daudiod.lib xmcored.lib xbdm.lib vcompd.lib /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /DEBUG /PDB:"C:\dev\360Dev\360_Demo\360_Demo\Debug\360_Demo.pdb" /STACK:"262144","262144" /TLBID:1 /IMPLIB:"C:\dev\360Dev\360_Demo\360_Demo\Debug\360_Demo.lib" Debug\stdafx.obj
+         Debug\Demo.obj /XEX:NO
+       ImageXex:
+         C:\Program Files (x86)\Microsoft Xbox 360 SDK\bin\win32\imagexex.exe /out:"C:\dev\360Dev\360_Demo\360_Demo\Debug\360_Demo.xex" "C:\dev\360Dev\360_Demo\360_Demo\Debug\360_Demo.exe" 
+         Microsoft(R) Xbox 360 Image File Builder Version 2.0.21256.0
+         (c)2012 Microsoft Corporation. All rights reserved.
+         
+       FinalizeBuildStatus:
+         Deleting file "Debug\360_Demo.unsuccessfulbuild".
+         Touching "Debug\360_Demo.lastbuildstate".
+     1>Done Building Project "C:\dev\360Dev\360_Demo\360_Demo\360_Demo.vcxproj" (build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:00.84
