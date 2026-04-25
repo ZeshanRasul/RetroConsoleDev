@@ -33,17 +33,16 @@ const CHAR*         g_strVertexShaderProgram =
 	" float4 gDiffuseLight : register(c5); 			"
 	"float4x4 g_InvWorld : register(c6);											"
 	" struct VS_IN                                 "
-    "                                              "
     " {                                            "
     "     float3 ObjPos : POSITION0;                "  // Object space position 
 	"	  float3 Norm   : NORMAL;	"
-    "     float3 Col     : COLOR0;                  "  
+    "     float2 UV     : TEXCOORD0;                  "  
     " };                                           "
     "                                              "
     " struct VS_OUT                                "
     " {                                            "
     "     float4 ProjPos  : POSITION0;              "  // Projected space position 
-    "     float4 Color       : COLOR0;             "
+	"	  float2 UV         : TEXCOORD0;"
     " };                                           "
     "                                              "
     " VS_OUT main( VS_IN In )                      "
@@ -53,8 +52,7 @@ const CHAR*         g_strVertexShaderProgram =
 	"     float3 normalW = mul(float4(In.Norm, 0.0f), g_InvWorld).xyz;       "
 	"	  normalW = normalize(normalW); "
 	"     float s = max(dot(gLightVecW, normalW), 0.0f);"// Transform vertex into 
-    "     Out.Color.rgb = s * (In.Col * gDiffuseLight).rgb;   "  // Projected space and
-	"	  Out.Color.a = 1.0f;"
+	"	  Out.UV = In.UV;	"
     "     return Out;                              "  // Transfer UVs
     " }                                            ";
 
@@ -72,12 +70,14 @@ const CHAR*         g_strPixelShaderProgram =
     " struct PS_IN                                 "
     " {                                            "
    "     float4 ProjPos  : POSITION0;              "  // Projected space position 
-    "     float4 Color       : COLOR0;			  "
+	"      float2 UV          : TEXCOORD0;"
     " };                                           "  // the vertex shader 
     "                                              "
     " float4 main( PS_IN In ) : COLOR              "
     " {                                            "
-    "     return In.Color;    "  // Sample texture and output
+	"     float3 texColor = tex2D(ColorTexture, In.UV).rgb;"
+	"     float3 diffuse = texColor; "
+    "     return float4(diffuse, 1.0f);    "  // Sample texture and output
     " }                                            ";
 
 //-------------------------------------------------------------------------------------
@@ -98,55 +98,52 @@ BOOL g_bWidescreen = TRUE;
 //--------------------------------------------------------------------------------------
 // Globals variables and definitions
 //--------------------------------------------------------------------------------------
-const FLOAT g_fInnerBoxColor[] = { 0.8f, 0.0f, 0.0f, 1.0f };
-const FLOAT g_fOuterBoxColor[] = { 0.0f, 0.8f, 0.0f, 1.0f };
-
 // Structure to hold vertex data.
 struct BOXVERTEX
 {
     XMFLOAT3 Position;
     XMFLOAT3 Normal;
-	XMFLOAT3 Color;
+	XMFLOAT2 UV;
 };
 
-// Unit box
+//Unit Box
 BOXVERTEX g_BoxVertices[4*6] =
 {
     // Front
-    { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT3(0.83f, 0.12f, 0.45f) },
-    { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT3(0.22f, 0.91f, 0.37f) },
-    { XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT3(0.64f, 0.48f, 0.95f) },
-    { XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT3(0.11f, 0.77f, 0.88f) },
+    { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2(0.0f, 0.0f) },
+    { XMFLOAT3(  1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2(1.0f, 0.0f) },
+    { XMFLOAT3(  1.0f,-1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2(1.0f, 1.0f) },
+    { XMFLOAT3( -1.0f,-1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2(0.0f, 1.0f) },
 
     // Back
-    { XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ), XMFLOAT3(0.93f, 0.33f, 0.21f) },
-    { XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ), XMFLOAT3(0.40f, 0.66f, 0.14f) },
-    { XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ), XMFLOAT3(0.75f, 0.52f, 0.09f) },
-    { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ), XMFLOAT3(0.18f, 0.25f, 0.97f) },
+    { XMFLOAT3( -1.0f, 1.0f,  1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ), XMFLOAT2(1.0f, 0.0f) },
+    { XMFLOAT3(  1.0f, 1.0f,  1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ), XMFLOAT2(0.0f, 0.0f) },
+    { XMFLOAT3(  1.0f,-1.0f,  1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ), XMFLOAT2(0.0f, 1.0f) },
+    { XMFLOAT3( -1.0f,-1.0f,  1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ), XMFLOAT2(1.0f, 1.0f) },
 
     // Left
-    { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT3( -1.0f, 0.0f, 0.0f ), XMFLOAT3(0.59f, 0.81f, 0.33f) },
-    { XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT3( -1.0f, 0.0f, 0.0f ), XMFLOAT3(0.07f, 0.55f, 0.69f) },
-    { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3( -1.0f, 0.0f, 0.0f ), XMFLOAT3(0.98f, 0.44f, 0.62f) },
-    { XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT3( -1.0f, 0.0f, 0.0f ), XMFLOAT3(0.36f, 0.19f, 0.84f) },
+    { XMFLOAT3( -1.0f,-1.0f,  1.0f ), XMFLOAT3(-1.0f, 0.0f, 0.0f ), XMFLOAT2(0.0f, 1.0f) },
+    { XMFLOAT3( -1.0f, 1.0f,  1.0f ), XMFLOAT3(-1.0f, 0.0f, 0.0f ), XMFLOAT2(0.0f, 0.0f) },
+    { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3(-1.0f, 0.0f, 0.0f ), XMFLOAT2(1.0f, 0.0f) },
+    { XMFLOAT3( -1.0f,-1.0f, -1.0f ), XMFLOAT3(-1.0f, 0.0f, 0.0f ), XMFLOAT2(1.0f, 1.0f) },
 
     // Right
-    { XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT3( 1.0f, 0.0f, 0.0f ), XMFLOAT3(0.72f, 0.13f, 0.58f) },
-    { XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT3( 1.0f, 0.0f, 0.0f ), XMFLOAT3(0.21f, 0.87f, 0.49f) },
-    { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT3( 1.0f, 0.0f, 0.0f ), XMFLOAT3(0.66f, 0.31f, 0.17f) },
-    { XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT3( 1.0f, 0.0f, 0.0f ), XMFLOAT3(0.05f, 0.92f, 0.73f) },
+    { XMFLOAT3( 1.0f,-1.0f,  1.0f ), XMFLOAT3(1.0f, 0.0f, 0.0f ), XMFLOAT2(1.0f, 1.0f) },
+    { XMFLOAT3( 1.0f, 1.0f,  1.0f ), XMFLOAT3(1.0f, 0.0f, 0.0f ), XMFLOAT2(1.0f, 0.0f) },
+    { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT3(1.0f, 0.0f, 0.0f ), XMFLOAT2(0.0f, 0.0f) },
+    { XMFLOAT3( 1.0f,-1.0f, -1.0f ), XMFLOAT3(1.0f, 0.0f, 0.0f ), XMFLOAT2(0.0f, 1.0f) },
 
     // Bottom
-    { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ), XMFLOAT3(0.88f, 0.27f, 0.41f) },
-    { XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ), XMFLOAT3(0.34f, 0.78f, 0.60f) },
-    { XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ), XMFLOAT3(0.52f, 0.06f, 0.90f) },
-    { XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ), XMFLOAT3(0.14f, 0.63f, 0.26f) },
+    { XMFLOAT3( -1.0f,-1.0f,  1.0f ), XMFLOAT3(0.0f,-1.0f, 0.0f ), XMFLOAT2(0.0f, 0.0f) },
+    { XMFLOAT3(  1.0f,-1.0f,  1.0f ), XMFLOAT3(0.0f,-1.0f, 0.0f ), XMFLOAT2(1.0f, 0.0f) },
+    { XMFLOAT3(  1.0f,-1.0f, -1.0f ), XMFLOAT3(0.0f,-1.0f, 0.0f ), XMFLOAT2(1.0f, 1.0f) },
+    { XMFLOAT3( -1.0f,-1.0f, -1.0f ), XMFLOAT3(0.0f,-1.0f, 0.0f ), XMFLOAT2(0.0f, 1.0f) },
 
     // Top
-    { XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ), XMFLOAT3(0.95f, 0.48f, 0.12f) },
-    { XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ), XMFLOAT3(0.28f, 0.35f, 0.99f) },
-    { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ), XMFLOAT3(0.61f, 0.74f, 0.08f) },
-    { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ), XMFLOAT3(0.17f, 0.50f, 0.93f) },
+    { XMFLOAT3( -1.0f, 1.0f,  1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f ), XMFLOAT2(0.0f, 1.0f) },
+    { XMFLOAT3(  1.0f, 1.0f,  1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f ), XMFLOAT2(1.0f, 1.0f) },
+    { XMFLOAT3(  1.0f, 1.0f, -1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f ), XMFLOAT2(1.0f, 0.0f) },
+    { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f ), XMFLOAT2(0.0f, 0.0f) },
 };
 
 
@@ -375,7 +372,7 @@ HRESULT Demo_360::InitApp()
     // filter it, generate mip levels, etc.  It is good for game prototyping
     // but is not suitable for final shipping code due to load time performance
     // reasons.
-    hr = D3DXCreateTextureFromFileEx( g_pd3dDevice, "game:\\Media\\Textures\\Rocks.tga",
+    hr = D3DXCreateTextureFromFileEx( g_pd3dDevice, "game:\\Media\\Textures\\crate.tga",
                                       D3DX_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT,
                                       0, D3DFMT_UNKNOWN, D3DPOOL_DEFAULT,
                                       D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL,
@@ -394,20 +391,6 @@ HRESULT Demo_360::InitApp()
     m_Texture->Format.SignX = GPUSIGN_GAMMA;
     m_Texture->Format.SignY = GPUSIGN_GAMMA;
     m_Texture->Format.SignZ = GPUSIGN_GAMMA;
-
-    // Define some vertices to draw
-	struct COLORVERTEX
-    {
-        FLOAT   Position[3];
-        FLOAT   Color[3];
-    };
-
-    // Triangle array width and height
-    const UINT Width = 35;
-    const UINT Height = 35;
-
-    // Number of primitives in stripped mesh
-    const UINT NumPrimitives = Width * Height * 2 + ( Height - 1 ) * 4;
 
 // Create and initialize vertex buffers
      g_pd3dDevice->CreateVertexBuffer( sizeof( g_BoxVertices ),
@@ -431,47 +414,17 @@ HRESULT Demo_360::InitApp()
 
         pVertices[i].Normal = g_BoxVertices[i].Normal;
 
-		pVertices[i].Color = g_BoxVertices[i].Color;
+		pVertices[i].UV = g_BoxVertices[i].UV;
     }
 
     m_pInnerBoxVB->Unlock();
-
-    // Number of indices needed in the index buffer
-    UINT NumIndices = ( Width + 1 ) * 2 * Height + 2 * ( Height - 1 );
-
-    // Create an index buffer
-
-    g_pd3dDevice->CreateIndexBuffer( NumIndices * sizeof( WORD ),
-                                     D3DUSAGE_WRITEONLY, D3DFMT_INDEX16,
-                                     D3DPOOL_DEFAULT, &m_IndexBuffer, NULL );
-    // Fill the index buffer
-    WORD* pIndices;
-    m_IndexBuffer->Lock( 0, 0, ( VOID** )&pIndices, 0 );
-    UINT Index = 0;
-    for( INT i = 0; i < Height; i++ )
-    {
-        // Tri-stripped vertices
-        for( INT j = 0; j < Width + 1; j++ )
-        {
-            pIndices[Index++] = ( WORD )( i * ( Width + 1 ) + j );
-            pIndices[Index++] = ( WORD )( ( i + 1 ) * ( Width + 1 ) + j );
-        }
-
-        // Degenerate strip connectors
-        if( i != Height - 1 )
-        {
-            pIndices[Index++] = ( WORD )( ( i + 1 ) * ( Width + 1 ) + Width );
-            pIndices[Index++] = ( WORD )( ( i + 1 ) * ( Width + 1 ) );
-        }
-    }
-    m_IndexBuffer->Unlock();
 
     // Define the vertex elements
     static const D3DVERTEXELEMENT9 VertexElements[4] =
     {
         { 0,  0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
         { 0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0 },
-		 { 0, 24, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 0 },
+		 { 0, 24, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
         D3DDECL_END()
     };
 
@@ -549,7 +502,7 @@ HRESULT Demo_360::Render()
         g_pd3dDevice->SetPixelShader( m_pBoxPS );
 
 		g_pd3dDevice->SetStreamSource( 0, m_pInnerBoxVB, 0, sizeof( BOXVERTEX ) );
-		g_pd3dDevice->SetIndices( m_IndexBuffer );
+	
 
 		// Set the vertex declaration
 		g_pd3dDevice->SetVertexDeclaration( m_VertexDecl );

@@ -67,6 +67,10 @@
     <CustomBuild Include="Shaders\FloatDepth.hlsl">
       <FileType>Document</FileType>
     </CustomBuild>
+    <CustomBuild Include="Release\Media\Textures\crate.tga">
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <None Include="Media\Textures\crate.tga" />
     <None Include="Textures\Rocks.tga" />
   </ItemGroup>
   <ItemGroup>
