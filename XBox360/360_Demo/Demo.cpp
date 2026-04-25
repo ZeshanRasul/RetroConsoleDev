@@ -78,7 +78,7 @@ const CHAR*         g_strPixelShaderProgram =
 //-------------------------------------------------------------------------------------
 // Global variables
 //-------------------------------------------------------------------------------------
-D3DDevice*             g_pd3dDevice;    // Our rendering device
+D3DDevice*             m_pd3dDevice;    // Our rendering device
 
 
 XMMATRIX g_matWorld;
@@ -87,8 +87,23 @@ XMMATRIX g_matProj;
 XMMATRIX g_matView;
 XMMATRIX g_InvWorld;
 XMMATRIX g_InvWorld2;
+XMMATRIX g_MatWVP;
+XMMATRIX g_MatWVP2;
 
 BOOL g_bWidescreen = TRUE;
+
+struct TimeInfo
+{    
+    LARGE_INTEGER qwTime;    
+    LARGE_INTEGER qwAppTime;   
+
+    float fAppTime;    
+    float fElapsedTime;    
+
+    float fSecsPerTick;    
+};
+
+TimeInfo g_Time;
 float dt = 1.0f / 60.0f;
 //--------------------------------------------------------------------------------------
 // Globals variables and definitions
@@ -207,7 +222,6 @@ class Demo_360 : public ATG::Application
 
 public:
     virtual HRESULT Initialize();
-	virtual HRESULT InitD3D();
 	virtual HRESULT InitScene();
 	virtual HRESULT InitApp();
     virtual HRESULT Update();
@@ -241,56 +255,192 @@ public:
 void _cdecl main()
 {
 	Demo_360 app;
-	app.Initialize();
-	if( FAILED( app.InitD3D() ) )
-        return;
+	ATG::GetVideoSettings( &app.m_d3dpp.BackBufferWidth, &app.m_d3dpp.BackBufferHeight );
 
-	app.InitScene();
-	app.InitApp();
-	for (;;)
-	{
-		app.Update();
-		app.Render();
-	}
+    // Make sure display is gamma correct.
+    app.m_d3dpp.BackBufferFormat =  ( D3DFORMAT )MAKESRGBFMT( D3DFMT_A8R8G8B8 );
+    app.m_d3dpp.FrontBufferFormat = ( D3DFORMAT )MAKESRGBFMT( D3DFMT_LE_X8R8G8B8 );
+
+	app.Run();
 
 }
 
 HRESULT Demo_360::Initialize()
 {
+	//InitD3D();
+
+	HRESULT hr;
+
+    // Create the font
+    if( FAILED( hr = m_Font.Create( "game:\\Media\\Fonts\\Arial_16.xpr" ) ) )
+    {
+        ATG_PrintError( "Couldn't create font\n" );
+        return hr;
+    }
+
+	// Confine text drawing to the title safe area
+    m_Font.SetWindow( ATG::GetTitleSafeArea() );
+
 	m_CameraRadius    = 16.0f;
 	m_CameraRotationY = 1.2 * D3DX_PI;
 	m_CameraHeight    = 3.0f;
+	//InitScene();
+	m_AppState = APPSTATE_CONTROLTEST;
+    m_fDeadZone = 0.24f;  // Set default deadzone to 24%
+    m_fLeftMotorSpeed = 0.0f;
+    m_fRightMotorSpeed = 0.0f;
 
+    // Quantized control values
+    m_pQuantizedThumbStickValues = new BYTE[256];
+    ZeroMemory( m_pQuantizedThumbStickValues, 256 );
+
+    m_pQuantizedButtonValues = new BYTE[256];
+    ZeroMemory( m_pQuantizedButtonValues, 256 );
+
+	hr;
+	//
+	//    // Create the box vertex shader
+ //   if( hr = ATG::LoadVertexShader( "game:\\Shaders\\FloatDepthVS.xvu", &m_pBoxVS ) ) 
+ //   {
+ //       ATG_PrintError( "Couldn't create FloatDepthVS.xvu\n" );
+ //   }
+
+ //   // Create the box pixel shader
+ //   if( hr = ATG::LoadPixelShader( "game:\\Shaders\\FloatDepthPS.xpu", &m_pBoxPS ) ) 
+ //   {
+ //       ATG_PrintError( "Couldn't create FloatDepthPS.xpu\n" );
+ //   }
+
+
+// Structure to hold vertex data
+
+	ID3DXBuffer* pShaderCode = NULL;
+    ID3DXBuffer* pErrorMsg = NULL;
+
+	 // Compile vertex shader
+   hr = D3DXCompileShader( g_strVertexShaderProgram, ( UINT )strlen( g_strVertexShaderProgram ),
+                                    NULL, NULL, "main", "vs_2_0", 0,
+                                    &pShaderCode, &pErrorMsg, NULL );
+    if( FAILED( hr ) )
+    {
+        OutputDebugStringA( pErrorMsg ? ( CHAR* )pErrorMsg->GetBufferPointer() : "" );
+        exit( 1 );
+    }
+
+    // Create vertex shader
+  
+    m_pd3dDevice->CreateVertexShader( ( DWORD* )pShaderCode->GetBufferPointer(),
+                                      &m_pBoxVS );
+
+    // Shader code is no longer required
+    pShaderCode->Release();
+    pShaderCode = NULL;
+
+    // Compile pixel shader
+    hr = D3DXCompileShader( g_strPixelShaderProgram, ( UINT )strlen( g_strPixelShaderProgram ),
+                            NULL, NULL, "main", "ps_2_0", 0,
+                            &pShaderCode, &pErrorMsg, NULL );
+    if( FAILED( hr ) )
+    {
+        OutputDebugStringA( pErrorMsg ? ( CHAR* )pErrorMsg->GetBufferPointer() : "" );
+        exit( 1 );
+    }
+
+
+    m_pd3dDevice->CreatePixelShader( ( DWORD* )pShaderCode->GetBufferPointer(),
+                                     &m_pBoxPS );
+
+    // Shader code no longer required
+    pShaderCode->Release();
+    pShaderCode = NULL;
+
+    // Load texture
+
+    // D3DXCreateTextureFromFile loads a texture and can optionally resize it,
+    // filter it, generate mip levels, etc.  It is good for game prototyping
+    // but is not suitable for final shipping code due to load time performance
+    // reasons.
+    hr = D3DXCreateTextureFromFileEx( m_pd3dDevice, "game:\\Media\\Textures\\crate.tga",
+                                      D3DX_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT,
+                                      0, D3DFMT_UNKNOWN, D3DPOOL_DEFAULT,
+                                      D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL,
+                                      &m_Texture );
+    if( FAILED( hr ) )
+	{
+		char buffer[256];
+		sprintf( buffer, "Texture load failed. HRESULT = 0x%08X\n", hr );
+	    OutputDebugStringA( buffer );
+		DebugBreak();
+
+	}
+    // Make texture format sRGB, since the source image is encoded in sRGB space.
+    // Note: this is not the best quality way of doing this - see the ATG::ConvertTextureToGoodSRGB 
+    // function in the ATG framework for the full high-quality method.
+    m_Texture->Format.SignX = GPUSIGN_GAMMA;
+    m_Texture->Format.SignY = GPUSIGN_GAMMA;
+    m_Texture->Format.SignZ = GPUSIGN_GAMMA;
+
+// Create and initialize vertex buffers
+     m_pd3dDevice->CreateVertexBuffer( sizeof( g_BoxVertices ),
+                                                  D3DUSAGE_WRITEONLY,
+                                                  NULL,
+                                                  D3DPOOL_DEFAULT,
+                                                  &m_pInnerBoxVB,
+                                                  NULL ) ;
+
+    // Put the data for the patches into our vertex buffer.
+    BOXVERTEX* pVertices;
+
+
+    m_pInnerBoxVB->Lock( 0, 0, ( VOID** )&pVertices, 0 );
+    for( UINT i = 0; i < 4 * 6; i++ )
+    {
+        // Scale position
+        XMVECTOR Position = XMLoadFloat3( &g_BoxVertices[i].Position );
+        Position = Position;
+        XMStoreVector3( &pVertices[i].Position, Position );
+
+        pVertices[i].Normal = g_BoxVertices[i].Normal;
+
+		pVertices[i].UV = g_BoxVertices[i].UV;
+    }
+
+    m_pInnerBoxVB->Unlock();
+
+    // Define the vertex elements
+    static const D3DVERTEXELEMENT9 VertexElements[4] =
+    {
+        { 0,  0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
+        { 0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0 },
+		 { 0, 24, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+        D3DDECL_END()
+    };
+
+    m_pd3dDevice->CreateVertexDeclaration( VertexElements, &m_VertexDecl );
+
+	g_matWorld = XMMatrixIdentity();
+
+	// Projection Matrix
+	FLOAT fAspectRatio = ( FLOAT )m_d3dpp.BackBufferWidth / ( FLOAT )m_d3dpp.BackBufferHeight;
+
+    XMVECTOR m_vEye = XMVectorSet( 0.0f, 3.0f, -27.0f, 0.0f );
+    XMVECTOR m_vLookAt = XMVectorSet( 0.0f, 0.0f, 0.0f, 0.0f );
+    XMVECTOR m_vUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
+
+    // Set the transform matrices
+    g_matWorld = XMMatrixIdentity();
+    g_matView = XMMatrixLookAtLH( m_vEye, m_vLookAt, m_vUp );
+    g_matProj = XMMatrixPerspectiveFovLH( XM_PI / 4, fAspectRatio, 0.01f, 100.0f );
+
+	g_matWorld2 = XMMatrixIdentity();
+	XMMATRIX Translation = XMMatrixTranslation(0.0f, -7.0f, 0.0f);
+	g_matWorld2 = g_matWorld2 * Translation;
+	XMMATRIX Scaling = XMMatrixScaling(20.0f, 1.0f, 20.0f);
+	g_matWorld2 = g_matWorld2 * Scaling;
+
+	m_LightVecW = XMFLOAT4(-0.5f, 0.75f, -2.0f, 0.0f);
+	m_DiffuseLight = XMFLOAT4(0.8f, 0.1f, 0.1f, 1.0f);
 	return S_OK;
-}
-
-HRESULT Demo_360::InitD3D()
-{
-	Direct3D* pD3D = Direct3DCreate9(D3D_SDK_VERSION);
-	if (!pD3D)
-		return E_FAIL;
-
-    D3DPRESENT_PARAMETERS d3dpp;
-    ZeroMemory( &d3dpp, sizeof( d3dpp ) );
-    d3dpp.BackBufferWidth = 1280;
-    d3dpp.BackBufferHeight = 720;
-    d3dpp.BackBufferFormat =  ( D3DFORMAT )MAKESRGBFMT( D3DFMT_A8R8G8B8 );
-    d3dpp.FrontBufferFormat = ( D3DFORMAT )MAKESRGBFMT( D3DFMT_LE_X8R8G8B8 );
-    d3dpp.MultiSampleType = D3DMULTISAMPLE_NONE;
-    d3dpp.MultiSampleQuality = 0;
-    d3dpp.BackBufferCount = 1;
-    d3dpp.EnableAutoDepthStencil = TRUE;
-    d3dpp.AutoDepthStencilFormat = D3DFMT_D24S8;
-    d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-    d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
-
-	    // Create the Direct3D device.
-    if( FAILED( pD3D->CreateDevice( 0, D3DDEVTYPE_HAL, NULL,
-                                    D3DCREATE_HARDWARE_VERTEXPROCESSING,
-                                    &d3dpp, &g_pd3dDevice ) ) )
-        return E_FAIL;
-
-    return S_OK;
 }
 
 HRESULT Demo_360::InitScene()
@@ -345,7 +495,7 @@ HRESULT Demo_360::InitApp()
 
     // Create vertex shader
   
-    g_pd3dDevice->CreateVertexShader( ( DWORD* )pShaderCode->GetBufferPointer(),
+    m_pd3dDevice->CreateVertexShader( ( DWORD* )pShaderCode->GetBufferPointer(),
                                       &m_pBoxVS );
 
     // Shader code is no longer required
@@ -363,7 +513,7 @@ HRESULT Demo_360::InitApp()
     }
 
 
-    g_pd3dDevice->CreatePixelShader( ( DWORD* )pShaderCode->GetBufferPointer(),
+    m_pd3dDevice->CreatePixelShader( ( DWORD* )pShaderCode->GetBufferPointer(),
                                      &m_pBoxPS );
 
     // Shader code no longer required
@@ -376,7 +526,7 @@ HRESULT Demo_360::InitApp()
     // filter it, generate mip levels, etc.  It is good for game prototyping
     // but is not suitable for final shipping code due to load time performance
     // reasons.
-    hr = D3DXCreateTextureFromFileEx( g_pd3dDevice, "game:\\Media\\Textures\\crate.tga",
+    hr = D3DXCreateTextureFromFileEx( m_pd3dDevice, "game:\\Media\\Textures\\crate.tga",
                                       D3DX_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT,
                                       0, D3DFMT_UNKNOWN, D3DPOOL_DEFAULT,
                                       D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL,
@@ -397,7 +547,7 @@ HRESULT Demo_360::InitApp()
     m_Texture->Format.SignZ = GPUSIGN_GAMMA;
 
 // Create and initialize vertex buffers
-     g_pd3dDevice->CreateVertexBuffer( sizeof( g_BoxVertices ),
+     m_pd3dDevice->CreateVertexBuffer( sizeof( g_BoxVertices ),
                                                   D3DUSAGE_WRITEONLY,
                                                   NULL,
                                                   D3DPOOL_DEFAULT,
@@ -432,7 +582,7 @@ HRESULT Demo_360::InitApp()
         D3DDECL_END()
     };
 
-    g_pd3dDevice->CreateVertexDeclaration( VertexElements, &m_VertexDecl );
+    m_pd3dDevice->CreateVertexDeclaration( VertexElements, &m_VertexDecl );
 
 	g_matWorld = XMMatrixIdentity();
 
@@ -462,12 +612,15 @@ HRESULT Demo_360::InitApp()
 
 HRESULT Demo_360::Update()
 {
+	// Get the current time
+    FLOAT fTime = ( FLOAT )m_Timer.GetAppTime();
+
 	// Get the current gamepad status
 	m_pGamepad = ATG::Input::GetMergedInput();
 
 	if( m_pGamepad->wPressedButtons & XINPUT_GAMEPAD_DPAD_UP )
 	{
-            m_CameraHeight   += 25.0f * dt;
+		m_CameraHeight   += 25.0f * dt;
 	}
 
 	if( m_pGamepad->wPressedButtons & XINPUT_GAMEPAD_DPAD_DOWN )
@@ -485,7 +638,7 @@ HRESULT Demo_360::Update()
             m_CameraRotationY   -= 25.0f * dt;
 	}
 
-		// If we rotate over 360 degrees, just roll back to 0
+	// If we rotate over 360 degrees, just roll back to 0
 	if( fabsf(m_CameraRotationY) >= 2.0f * D3DX_PI ) 
 		m_CameraRotationY = 0.0f;
 
@@ -495,65 +648,88 @@ HRESULT Demo_360::Update()
 
 	BuildViewMatrix();
 
+	XMMATRIX matWVP = g_matWorld * g_matView * g_matProj;
+	g_MatWVP = XMMatrixTranspose( matWVP );
+	g_InvWorld = XMMatrixInverse(&XMMatrixDeterminant(g_matWorld), g_matWorld);
+	g_InvWorld = XMMatrixTranspose(g_InvWorld);
+	g_InvWorld2 = XMMatrixInverse(&XMMatrixDeterminant(g_matWorld2), g_matWorld2);
+	g_InvWorld2 = XMMatrixTranspose(g_InvWorld2);
+	XMMATRIX matWVP2 = g_matWorld2 * g_matView * g_matProj;
+	g_MatWVP2 = XMMatrixTranspose( matWVP2 );
+	
 	return S_OK;
 }
 
 HRESULT Demo_360::Render()
 {
-		g_pd3dDevice->Clear(0L, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER|D3DCLEAR_STENCIL, D3DCOLOR_XRGB(0,0,255), 1.0f, 0L);
+		m_pd3dDevice->Clear(0L, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER|D3DCLEAR_STENCIL, D3DCOLOR_XRGB(0,0,255), 1.0f, 0L);
 
-		g_pd3dDevice->SetRenderState( D3DRS_ZENABLE, D3DZB_TRUE );
-		g_pd3dDevice->SetRenderState( D3DRS_ALPHABLENDENABLE, FALSE );
-		g_pd3dDevice->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
+		m_pd3dDevice->SetRenderState( D3DRS_ZENABLE, D3DZB_TRUE );
+		m_pd3dDevice->SetRenderState( D3DRS_ALPHABLENDENABLE, FALSE );
+		m_pd3dDevice->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
 
 		// Set shaders
-        g_pd3dDevice->SetVertexShader( m_pBoxVS );
-        g_pd3dDevice->SetPixelShader( m_pBoxPS );
+        m_pd3dDevice->SetVertexShader( m_pBoxVS );
+        m_pd3dDevice->SetPixelShader( m_pBoxPS );
 
-		g_pd3dDevice->SetStreamSource( 0, m_pInnerBoxVB, 0, sizeof( BOXVERTEX ) );
+		m_pd3dDevice->SetStreamSource( 0, m_pInnerBoxVB, 0, sizeof( BOXVERTEX ) );
 	
 
 		// Set the vertex declaration
-		g_pd3dDevice->SetVertexDeclaration( m_VertexDecl );
+		m_pd3dDevice->SetVertexDeclaration( m_VertexDecl );
 
 		// Configure sampler 0 for trilinear sampling
-		g_pd3dDevice->SetSamplerState( 0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR );
-		g_pd3dDevice->SetSamplerState( 0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR );
-		g_pd3dDevice->SetSamplerState( 0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR );
+		m_pd3dDevice->SetSamplerState( 0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR );
+		m_pd3dDevice->SetSamplerState( 0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR );
+		m_pd3dDevice->SetSamplerState( 0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR );
 
 		// Set texture 0
-		g_pd3dDevice->SetTexture( 0, m_Texture );
-
-		// Set the stream source
-	
-
-		// Set the index buffer
+		m_pd3dDevice->SetTexture( 0, m_Texture );
 
 
-				    // Setup the vertex shader inputs.
-		XMMATRIX matWVP = g_matWorld * g_matView * g_matProj;
-		matWVP = XMMatrixTranspose( matWVP );
-		g_InvWorld = XMMatrixInverse(&XMMatrixDeterminant(g_matWorld), g_matWorld);
-		g_InvWorld = XMMatrixTranspose(g_InvWorld);
-		g_InvWorld2 = XMMatrixInverse(&XMMatrixDeterminant(g_matWorld2), g_matWorld2);
-		g_InvWorld2 = XMMatrixTranspose(g_InvWorld2);
-        // Set shader constants
-        g_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&matWVP, 4 );
-		g_pd3dDevice->SetVertexShaderConstantF(4, (FLOAT*)&m_LightVecW, 1);
-		g_pd3dDevice->SetVertexShaderConstantF(5, (FLOAT*)&m_DiffuseLight, 1);
-		g_pd3dDevice->SetVertexShaderConstantF( 6, ( FLOAT* )&g_InvWorld, 4 );
-		g_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
+        // Draw Box
+        m_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&g_MatWVP, 4 );
+		m_pd3dDevice->SetVertexShaderConstantF(4, (FLOAT*)&m_LightVecW, 1);
+		m_pd3dDevice->SetVertexShaderConstantF(5, (FLOAT*)&m_DiffuseLight, 1);
+		m_pd3dDevice->SetVertexShaderConstantF( 6, ( FLOAT* )&g_InvWorld, 4 );
+		m_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
 
-		// Setup the vertex shader inputs
+        // Draw Ground Box
+        m_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&g_MatWVP2, 4 );
+		m_pd3dDevice->SetVertexShaderConstantF( 6, ( FLOAT* )&g_InvWorld2, 4 );
+		m_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
 
-		XMMATRIX matWVP2 = g_matWorld2 * g_matView * g_matProj;
-		matWVP2 = XMMatrixTranspose( matWVP2 );
-        // Set shader constants
-        g_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&matWVP2, 4 );
-		g_pd3dDevice->SetVertexShaderConstantF( 6, ( FLOAT* )&g_InvWorld2, 4 );
-		g_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
+		// Output title and framerate
+		m_Timer.MarkFrame();
 
-		g_pd3dDevice->Present(NULL, NULL, NULL, NULL);
+		{
+			m_Font.Begin();
+			m_Font.SetScaleFactors( 1.2f, 1.2f );
+			m_Font.DrawText( 0, 0, 0xffffffff, L"XBOX360 Demo" );
+			m_Font.SetScaleFactors( 1.0f, 1.0f );
+			m_Font.DrawText( 0, 0, 0xffffff00, m_Timer.GetFrameRate(), ATGFONT_RIGHT );
+
+			// Display the total time the app has been running
+			DOUBLE fAppTimeInSeconds = m_Timer.GetAppTime();
+			DOUBLE fAppTimeInMinutes = fAppTimeInSeconds / 60.0;
+			DOUBLE fAppTimeInHours = fAppTimeInMinutes / 60.0;
+			DOUBLE fAppTimeInDays = fAppTimeInHours / 24.0;
+
+			DWORD dwSeconds = ( DWORD )( floor( fAppTimeInSeconds ) ) % 60;
+			DWORD dwMinutes = ( DWORD )( floor( fAppTimeInMinutes ) ) % 60;
+			DWORD dwHours = ( DWORD )( floor( fAppTimeInHours ) ) % 24;
+			DWORD dwDays = ( DWORD )( floor( fAppTimeInDays ) );
+
+			WCHAR strTime[80];
+			swprintf_s( strTime, L"%02ldd%02ldh%02ldm%02lds",
+						dwDays, dwHours, dwMinutes, dwSeconds );
+			m_Font.DrawText( 0, 20, 0xffffff00, strTime, ATGFONT_RIGHT );
+
+			m_Font.End();
+		}
+
+		
+		m_pd3dDevice->Present(NULL, NULL, NULL, NULL);
 
 		return S_OK;
 }
