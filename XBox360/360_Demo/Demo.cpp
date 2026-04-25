@@ -255,6 +255,7 @@ public:
 	LPDIRECT3DPIXELSHADER9 m_pBoxPS;
 
 	IDirect3DTexture9* m_Texture;
+	IDirect3DTexture9* m_Texture2;
 	IDirect3DVertexDeclaration9* m_VertexDecl;
 	IDirect3DVertexShader9* m_VertexShader;
 	IDirect3DPixelShader9* m_PixelShader;
@@ -401,6 +402,28 @@ HRESULT Demo_360::Initialize()
     m_Texture->Format.SignX = GPUSIGN_GAMMA;
     m_Texture->Format.SignY = GPUSIGN_GAMMA;
     m_Texture->Format.SignZ = GPUSIGN_GAMMA;
+
+	    hr = D3DXCreateTextureFromFileEx( m_pd3dDevice, "game:\\Media\\Textures\\grass.tga",
+                                      D3DX_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT,
+                                      0, D3DFMT_UNKNOWN, D3DPOOL_DEFAULT,
+                                      D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL,
+                                      &m_Texture2 );
+    if( FAILED( hr ) )
+	{
+		char buffer[256];
+		sprintf( buffer, "Texture load failed. HRESULT = 0x%08X\n", hr );
+	    OutputDebugStringA( buffer );
+		DebugBreak();
+
+	}
+    // Make texture format sRGB, since the source image is encoded in sRGB space.
+    // Note: this is not the best quality way of doing this - see the ATG::ConvertTextureToGoodSRGB 
+    // function in the ATG framework for the full high-quality method.
+    m_Texture2->Format.SignX = GPUSIGN_GAMMA;
+    m_Texture2->Format.SignY = GPUSIGN_GAMMA;
+    m_Texture2->Format.SignZ = GPUSIGN_GAMMA;
+
+
 
 // Create and initialize vertex buffers
      m_pd3dDevice->CreateVertexBuffer( sizeof( g_BoxVertices ),
@@ -723,6 +746,8 @@ HRESULT Demo_360::Render()
 		m_pd3dDevice->SetVertexShaderConstantF(14, (FLOAT*)&g_matWorld, 1);
 		m_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
 
+		// Set texture 2
+		m_pd3dDevice->SetTexture( 0, m_Texture2 );
         // Draw Ground Box
         m_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&g_MatWVP2, 4 );
 		m_pd3dDevice->SetVertexShaderConstantF( 6, ( FLOAT* )&g_InvWorld2, 4 );

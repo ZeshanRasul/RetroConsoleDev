@@ -79,6 +79,10 @@
     <CustomBuild Include="Release\Media\Fonts\Arial_16.xpr">
       <FileType>Document</FileType>
     </CustomBuild>
+    <None Include="Media\Textures\grass.tga" />
+    <None Include="Release\Media\Textures\grass.tga">
+      <DeploymentContent>false</DeploymentContent>
+    </None>
     <None Include="Textures\Rocks.tga" />
   </ItemGroup>
   <ItemGroup>

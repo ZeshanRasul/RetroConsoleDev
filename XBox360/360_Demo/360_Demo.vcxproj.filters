@@ -28,6 +28,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Textures\Rocks.tga" />
+    <None Include="Media\Textures\grass.tga" />
+    <None Include="Release\Media\Textures\grass.tga" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Release\Media\Textures\Rocks.tga" />
