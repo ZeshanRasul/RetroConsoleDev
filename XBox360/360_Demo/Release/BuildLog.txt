@@ -1,11 +1,14 @@
-﻿Build started 25/04/2026 12:38:17.
+﻿Build started 25/04/2026 15:13:40.
      1>Project "C:\dev\PS1Dev\XBox360\360_Demo\360_Demo.vcxproj" on node 2 (build target(s)).
      1>InitializeBuildStatus:
          Creating "Release\360_Demo.unsuccessfulbuild" because "AlwaysCreate" was specified.
        ClCompile:
          C:\Program Files (x86)\Microsoft Xbox 360 SDK\bin\win32\CL.exe /c /I../Common/ /Zi /nologo /W3 /WX- /Ox /Os /D NDEBUG /D _XBOX /GF /Gm- /MT /GS- /Gy /fp:fast /fp:except- /Zc:wchar_t /Zc:forScope /GR- /openmp- /Fo"Release\\" /Fd"Release\vc100.pdb" /TP Demo.cpp /FI"C:\Program Files (x86)\Microsoft Xbox 360 SDK\\include\xbox\xbox_intellisense_platform.h"
          Demo.cpp
-       Link:
+     1>Project "C:\dev\PS1Dev\XBox360\360_Demo\360_Demo.vcxproj" (1) is building "C:\Program Files (x86)\Microsoft Xbox 360 SDK\Source\Samples\Common\AtgFramework2010.vcxproj" (2:3) on node 2 (GetResolvedLinkLibs target(s)).
+     2>C:\Windows\Microsoft.NET\Framework\v4.0.30319\Microsoft.Common.Targets(1605,5): warning MSB3088: Could not read state file "Release\AtgFramework2010.vcxprojResolveAssemblyReference.cache". Access to the path 'C:\Program Files (x86)\Microsoft Xbox 360 SDK\Source\Samples\Common\Release\AtgFramework2010.vcxprojResolveAssemblyReference.cache' is denied.
+     2>Done Building Project "C:\Program Files (x86)\Microsoft Xbox 360 SDK\Source\Samples\Common\AtgFramework2010.vcxproj" (GetResolvedLinkLibs target(s)).
+     1>Link:
          C:\Program Files (x86)\Microsoft Xbox 360 SDK\bin\win32\link.exe /ERRORREPORT:PROMPT /OUT:"C:\dev\PS1Dev\XBox360\360_Demo\Release\360_Demo.exe" /INCREMENTAL:NO /NOLOGO d3d9d.lib d3dx9d.lib xgraphicsd.lib xapilibd.lib xaudiod2.lib x3daudiod.lib xmcored.lib xboxkrnl.lib xbdm.lib /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /DEBUG /PDB:"C:\dev\PS1Dev\XBox360\360_Demo\Release\360_Demo.pdb" /STACK:"262144","262144" /OPT:REF /OPT:ICF /TLBID:1 /RELEASE /IMPLIB:"C:\dev\PS1Dev\XBox360\360_Demo\Release\360_Demo.lib" Release\stdafx.obj
          Release\Demo.obj
          "C:\Program Files (x86)\Microsoft Xbox 360 SDK\Source\Samples\Common\Release\AtgFramework.lib" /XEX:NO
@@ -21,4 +24,4 @@
 
 Build succeeded.
 
-Time Elapsed 00:00:04.14
+Time Elapsed 00:00:04.33

@@ -32,21 +32,22 @@ const CHAR*         g_strVertexShaderProgram =
     " struct VS_IN                                 "
     "                                              "
     " {                                            "
-    "     float4 ObjPos : POSITION;                "  // Object space position 
-    "     float2 UV     : TEXCOORD;                "  // Texture coordinate
+    "     float4 ObjPos : POSITION0;                "  // Object space position 
+	"	  float3 Norm   : NORMAL0;	"
+    "     float3 Col     : COLOR0;                  "  
     " };                                           "
     "                                              "
     " struct VS_OUT                                "
     " {                                            "
-    "     float4 ProjPos  : POSITION;              "  // Projected space position 
-    "     float2 UV       : TEXCOORD0;             "
+    "     float4 ProjPos  : POSITION0;              "  // Projected space position 
+    "     float4 Color       : COLOR0;             "
     " };                                           "
     "                                              "
     " VS_OUT main( VS_IN In )                      "
     " {                                            "
     "     VS_OUT Out;                              "
     "     Out.ProjPos = mul(In.ObjPos, matWVP );  "  // Transform vertex into 
-    "     Out.UV = In.UV;                          "  // Projected space and
+    "     Out.Color = float4(In.Col, 1.0f);                          "  // Projected space and
     "     return Out;                              "  // Transfer UVs
     " }                                            ";
 
@@ -62,12 +63,13 @@ const CHAR*         g_strPixelShaderProgram =
     "                                              "
     " struct PS_IN                                 "
     " {                                            "
-    "     float2 UV : TEXCOORD0;                   "  // Interpolated UV from
+   "     float4 ProjPos  : POSITION0;              "  // Projected space position 
+    "     float4 Color       : COLOR0;			  "
     " };                                           "  // the vertex shader 
     "                                              "
     " float4 main( PS_IN In ) : COLOR              "
     " {                                            "
-    "     return tex2D( ColorTexture, In.UV );     "  // Sample texture and output
+    "     return In.Color;    "  // Sample texture and output
     " }                                            ";
 
 //-------------------------------------------------------------------------------------
@@ -93,46 +95,47 @@ struct BOXVERTEX
 {
     XMFLOAT3 Position;
     XMFLOAT3 Normal;
+	XMFLOAT3 Color;
 };
 
 // Unit box
 BOXVERTEX g_BoxVertices[4*6] =
 {
     // Front
-    { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ) },
-    { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ) },
-    { XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ) },
-    { XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ) },
+    { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT3(0.83f, 0.12f, 0.45f) },
+    { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT3(0.22f, 0.91f, 0.37f) },
+    { XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT3(0.64f, 0.48f, 0.95f) },
+    { XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT3(0.11f, 0.77f, 0.88f) },
 
     // Back
-    { XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ) },
-    { XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ) },
-    { XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ) },
-    { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ) },
+    { XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ), XMFLOAT3(0.93f, 0.33f, 0.21f) },
+    { XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ), XMFLOAT3(0.40f, 0.66f, 0.14f) },
+    { XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ), XMFLOAT3(0.75f, 0.52f, 0.09f) },
+    { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ), XMFLOAT3(0.18f, 0.25f, 0.97f) },
 
     // Left
-    { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT3( -1.0f, 0.0f, 0.0f ) },
-    { XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT3( -1.0f, 0.0f, 0.0f ) },
-    { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3( -1.0f, 0.0f, 0.0f ) },
-    { XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT3( -1.0f, 0.0f, 0.0f ) },
+    { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT3( -1.0f, 0.0f, 0.0f ), XMFLOAT3(0.59f, 0.81f, 0.33f) },
+    { XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT3( -1.0f, 0.0f, 0.0f ), XMFLOAT3(0.07f, 0.55f, 0.69f) },
+    { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3( -1.0f, 0.0f, 0.0f ), XMFLOAT3(0.98f, 0.44f, 0.62f) },
+    { XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT3( -1.0f, 0.0f, 0.0f ), XMFLOAT3(0.36f, 0.19f, 0.84f) },
 
     // Right
-    { XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT3( 1.0f, 0.0f, 0.0f ) },
-    { XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT3( 1.0f, 0.0f, 0.0f ) },
-    { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT3( 1.0f, 0.0f, 0.0f ) },
-    { XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT3( 1.0f, 0.0f, 0.0f ) },
+    { XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT3( 1.0f, 0.0f, 0.0f ), XMFLOAT3(0.72f, 0.13f, 0.58f) },
+    { XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT3( 1.0f, 0.0f, 0.0f ), XMFLOAT3(0.21f, 0.87f, 0.49f) },
+    { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT3( 1.0f, 0.0f, 0.0f ), XMFLOAT3(0.66f, 0.31f, 0.17f) },
+    { XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT3( 1.0f, 0.0f, 0.0f ), XMFLOAT3(0.05f, 0.92f, 0.73f) },
 
     // Bottom
-    { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ) },
-    { XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ) },
-    { XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ) },
-    { XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ) },
+    { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ), XMFLOAT3(0.88f, 0.27f, 0.41f) },
+    { XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ), XMFLOAT3(0.34f, 0.78f, 0.60f) },
+    { XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ), XMFLOAT3(0.52f, 0.06f, 0.90f) },
+    { XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ), XMFLOAT3(0.14f, 0.63f, 0.26f) },
 
     // Top
-    { XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ) },
-    { XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ) },
-    { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ) },
-    { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ) },
+    { XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ), XMFLOAT3(0.95f, 0.48f, 0.12f) },
+    { XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ), XMFLOAT3(0.28f, 0.35f, 0.99f) },
+    { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ), XMFLOAT3(0.61f, 0.74f, 0.08f) },
+    { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ), XMFLOAT3(0.17f, 0.50f, 0.93f) },
 };
 
 
@@ -383,7 +386,7 @@ HRESULT Demo_360::InitApp()
 	struct COLORVERTEX
     {
         FLOAT   Position[3];
-        FLOAT   UV[2];
+        FLOAT   Color[3];
     };
 
     // Triangle array width and height
@@ -414,6 +417,8 @@ HRESULT Demo_360::InitApp()
         XMStoreVector3( &pVertices[i].Position, Position );
 
         pVertices[i].Normal = g_BoxVertices[i].Normal;
+
+		pVertices[i].Color = g_BoxVertices[i].Color;
     }
 
     m_pInnerBoxVB->Unlock();
@@ -449,10 +454,11 @@ HRESULT Demo_360::InitApp()
     m_IndexBuffer->Unlock();
 
     // Define the vertex elements
-    static const D3DVERTEXELEMENT9 VertexElements[3] =
+    static const D3DVERTEXELEMENT9 VertexElements[4] =
     {
         { 0,  0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
-        { 0, 12, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+        { 0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0 },
+		 { 0, 24, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 0 },
         D3DDECL_END()
     };
 
@@ -512,9 +518,9 @@ HRESULT Demo_360::Render()
 {
 		g_pd3dDevice->Clear(0L, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER|D3DCLEAR_STENCIL, D3DCOLOR_XRGB(0,0,255), 1.0f, 0L);
 
-		g_pd3dDevice->SetRenderState( D3DRS_ZENABLE, TRUE );
+		g_pd3dDevice->SetRenderState( D3DRS_ZENABLE, D3DZB_TRUE );
 		g_pd3dDevice->SetRenderState( D3DRS_ALPHABLENDENABLE, FALSE );
-	//	g_pd3dDevice->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
+		g_pd3dDevice->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
 
 		// Set shaders
         g_pd3dDevice->SetVertexShader( m_pBoxVS );
