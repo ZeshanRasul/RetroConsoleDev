@@ -64,7 +64,9 @@
     <CustomBuild Include="Media\Textures\Rocks.tga">
       <FileType>Document</FileType>
     </CustomBuild>
-    <None Include="Shaders\depth.hlsl" />
+    <CustomBuild Include="Shaders\FloatDepth.hlsl">
+      <FileType>Document</FileType>
+    </CustomBuild>
     <None Include="Textures\Rocks.tga" />
   </ItemGroup>
   <ItemGroup>

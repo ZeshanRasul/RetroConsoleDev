@@ -1,5 +1,24 @@
-﻿Build started 25/04/2026 03:28:13.
+﻿Build started 25/04/2026 12:38:17.
+     1>Project "C:\dev\PS1Dev\XBox360\360_Demo\360_Demo.vcxproj" on node 2 (build target(s)).
+     1>InitializeBuildStatus:
+         Creating "Release\360_Demo.unsuccessfulbuild" because "AlwaysCreate" was specified.
+       ClCompile:
+         C:\Program Files (x86)\Microsoft Xbox 360 SDK\bin\win32\CL.exe /c /I../Common/ /Zi /nologo /W3 /WX- /Ox /Os /D NDEBUG /D _XBOX /GF /Gm- /MT /GS- /Gy /fp:fast /fp:except- /Zc:wchar_t /Zc:forScope /GR- /openmp- /Fo"Release\\" /Fd"Release\vc100.pdb" /TP Demo.cpp /FI"C:\Program Files (x86)\Microsoft Xbox 360 SDK\\include\xbox\xbox_intellisense_platform.h"
+         Demo.cpp
+       Link:
+         C:\Program Files (x86)\Microsoft Xbox 360 SDK\bin\win32\link.exe /ERRORREPORT:PROMPT /OUT:"C:\dev\PS1Dev\XBox360\360_Demo\Release\360_Demo.exe" /INCREMENTAL:NO /NOLOGO d3d9d.lib d3dx9d.lib xgraphicsd.lib xapilibd.lib xaudiod2.lib x3daudiod.lib xmcored.lib xboxkrnl.lib xbdm.lib /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /DEBUG /PDB:"C:\dev\PS1Dev\XBox360\360_Demo\Release\360_Demo.pdb" /STACK:"262144","262144" /OPT:REF /OPT:ICF /TLBID:1 /RELEASE /IMPLIB:"C:\dev\PS1Dev\XBox360\360_Demo\Release\360_Demo.lib" Release\stdafx.obj
+         Release\Demo.obj
+         "C:\Program Files (x86)\Microsoft Xbox 360 SDK\Source\Samples\Common\Release\AtgFramework.lib" /XEX:NO
+       ImageXex:
+         C:\Program Files (x86)\Microsoft Xbox 360 SDK\bin\win32\imagexex.exe /out:"C:\dev\PS1Dev\XBox360\360_Demo\Release\360_Demo.xex" "C:\dev\PS1Dev\XBox360\360_Demo\Release\360_Demo.exe" 
+         Microsoft(R) Xbox 360 Image File Builder Version 2.0.21256.0
+         (c)2012 Microsoft Corporation. All rights reserved.
+         
+       FinalizeBuildStatus:
+         Deleting file "Release\360_Demo.unsuccessfulbuild".
+         Touching "Release\360_Demo.lastbuildstate".
+     1>Done Building Project "C:\dev\PS1Dev\XBox360\360_Demo\360_Demo.vcxproj" (build target(s)).
 
 Build succeeded.
 
-Time Elapsed 00:00:00.00
+Time Elapsed 00:00:04.14

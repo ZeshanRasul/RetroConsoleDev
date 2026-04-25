@@ -17,6 +17,7 @@
 
 #include <d3d9.h>
 
+
 //--------------------------------------------------------------------------------------
 // Vertex shader
 // We use the register semantic here to directly define the input register
@@ -44,7 +45,7 @@ const CHAR*         g_strVertexShaderProgram =
     " VS_OUT main( VS_IN In )                      "
     " {                                            "
     "     VS_OUT Out;                              "
-    "     Out.ProjPos = mul( matWVP, In.ObjPos );  "  // Transform vertex into 
+    "     Out.ProjPos = mul(In.ObjPos, matWVP );  "  // Transform vertex into 
     "     Out.UV = In.UV;                          "  // Projected space and
     "     return Out;                              "  // Transfer UVs
     " }                                            ";
@@ -73,29 +74,14 @@ const CHAR*         g_strPixelShaderProgram =
 // Global variables
 //-------------------------------------------------------------------------------------
 D3DDevice*             g_pd3dDevice;    // Our rendering device
-D3DVertexBuffer*       g_pVB;           // Buffer to hold vertices
-D3DVertexDeclaration*  g_pVertexDecl;   // Vertex format decl
-D3DVertexShader*       g_pVertexShader; // Vertex Shader
-D3DPixelShader*        g_pPixelShader;  // Pixel Shader
 
 
-IDirect3DTexture9* pTexture;
-IDirect3DVertexDeclaration9* pVertexDecl;
-IDirect3DVertexShader9* pVertexShader;
-IDirect3DPixelShader9* pPixelShader;
-IDirect3DIndexBuffer9* pIndexBuffer;
 XMMATRIX g_matWorld;
 XMMATRIX g_matProj;
 XMMATRIX g_matView;
 
 BOOL g_bWidescreen = TRUE;
-// Vertex buffers
-LPDIRECT3DVERTEXBUFFER9 m_pInnerBoxVB;
-LPDIRECT3DVERTEXBUFFER9 m_pOuterBoxVB;
 
-// Shaders
-LPDIRECT3DVERTEXSHADER9 m_pBoxVS;
-LPDIRECT3DPIXELSHADER9 m_pBoxPS;
 //--------------------------------------------------------------------------------------
 // Globals variables and definitions
 //--------------------------------------------------------------------------------------
@@ -222,6 +208,21 @@ public:
     virtual HRESULT Update();
     virtual HRESULT Render();
 
+	// Vertex buffers
+	LPDIRECT3DVERTEXBUFFER9 m_pInnerBoxVB;
+	LPDIRECT3DVERTEXBUFFER9 m_pOuterBoxVB;
+
+	// Shaders
+	LPDIRECT3DVERTEXSHADER9 m_pBoxVS;
+	LPDIRECT3DPIXELSHADER9 m_pBoxPS;
+
+	IDirect3DTexture9* m_Texture;
+	IDirect3DVertexDeclaration9* m_VertexDecl;
+	IDirect3DVertexShader9* m_VertexShader;
+	IDirect3DPixelShader9* m_PixelShader;
+	IDirect3DIndexBuffer9* m_IndexBuffer;
+
+	XMMATRIX m_MatWVP;
 };
 
 void _cdecl main()
@@ -236,34 +237,7 @@ void _cdecl main()
 	for (;;)
 	{
 		app.Update();
-		g_pd3dDevice->Clear(0L, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER|D3DCLEAR_STENCIL, D3DCOLOR_XRGB(0,0,255), 1.0f, 0L);
-
-		// Set shaders
-		g_pd3dDevice->SetVertexShader( pVertexShader );
-		g_pd3dDevice->SetPixelShader( pPixelShader );
-
-		// Set the vertex declaration
-		g_pd3dDevice->SetVertexDeclaration( pVertexDecl );
-
-		// Configure sampler 0 for trilinear sampling
-		g_pd3dDevice->SetSamplerState( 0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR );
-		g_pd3dDevice->SetSamplerState( 0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR );
-		g_pd3dDevice->SetSamplerState( 0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR );
-
-		// Set texture 0
-		g_pd3dDevice->SetTexture( 0, pTexture );
-
-		// Set the stream source
-		g_pd3dDevice->SetStreamSource( 0, m_pInnerBoxVB, 0, sizeof( BOXVERTEX ) );
-
-		// Set the index buffer
-		g_pd3dDevice->SetIndices( pIndexBuffer );
-    
-		XMMATRIX matWVP = g_matWorld * g_matView * g_matProj;
-		g_pd3dDevice->SetVertexShaderConstantF(0, (FLOAT*)&matWVP, 4);
-
-		g_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
-		g_pd3dDevice->Present(NULL, NULL, NULL, NULL);
+		app.Render();
 	}
 
 }
@@ -322,22 +296,22 @@ HRESULT Demo_360::InitApp()
     m_pQuantizedButtonValues = new BYTE[256];
     ZeroMemory( m_pQuantizedButtonValues, 256 );
 
-		HRESULT hr;
-	
-	    // Create the box vertex shader
-    if( hr = ATG::LoadVertexShader( "game:\\Media\\Shaders\\FloatDepthVS.xvu", &m_pBoxVS ) ) 
-    {
-        ATG_PrintError( "Couldn't create FloatDepthVS.xvu\n" );
-    }
+	HRESULT hr;
+	//
+	//    // Create the box vertex shader
+ //   if( hr = ATG::LoadVertexShader( "game:\\Shaders\\FloatDepthVS.xvu", &m_pBoxVS ) ) 
+ //   {
+ //       ATG_PrintError( "Couldn't create FloatDepthVS.xvu\n" );
+ //   }
 
-    // Create the box pixel shader
-    if( hr = ATG::LoadPixelShader( "game:\\Media\\Shaders\\FloatDepthPS.xpu", &m_pBoxPS ) ) 
-    {
-        ATG_PrintError( "Couldn't create FloatDepthPS.xpu\n" );
-    }
+ //   // Create the box pixel shader
+ //   if( hr = ATG::LoadPixelShader( "game:\\Shaders\\FloatDepthPS.xpu", &m_pBoxPS ) ) 
+ //   {
+ //       ATG_PrintError( "Couldn't create FloatDepthPS.xpu\n" );
+ //   }
 
 
-	// Structure to hold vertex data
+// Structure to hold vertex data
 
 	ID3DXBuffer* pShaderCode = NULL;
     ID3DXBuffer* pErrorMsg = NULL;
@@ -355,7 +329,7 @@ HRESULT Demo_360::InitApp()
     // Create vertex shader
   
     g_pd3dDevice->CreateVertexShader( ( DWORD* )pShaderCode->GetBufferPointer(),
-                                      &pVertexShader );
+                                      &m_pBoxVS );
 
     // Shader code is no longer required
     pShaderCode->Release();
@@ -373,7 +347,7 @@ HRESULT Demo_360::InitApp()
 
 
     g_pd3dDevice->CreatePixelShader( ( DWORD* )pShaderCode->GetBufferPointer(),
-                                     &pPixelShader );
+                                     &m_pBoxPS );
 
     // Shader code no longer required
     pShaderCode->Release();
@@ -389,7 +363,7 @@ HRESULT Demo_360::InitApp()
                                       D3DX_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT,
                                       0, D3DFMT_UNKNOWN, D3DPOOL_DEFAULT,
                                       D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL,
-                                      &pTexture );
+                                      &m_Texture );
     if( FAILED( hr ) )
 	{
 		char buffer[256];
@@ -401,9 +375,9 @@ HRESULT Demo_360::InitApp()
     // Make texture format sRGB, since the source image is encoded in sRGB space.
     // Note: this is not the best quality way of doing this - see the ATG::ConvertTextureToGoodSRGB 
     // function in the ATG framework for the full high-quality method.
-    pTexture->Format.SignX = GPUSIGN_GAMMA;
-    pTexture->Format.SignY = GPUSIGN_GAMMA;
-    pTexture->Format.SignZ = GPUSIGN_GAMMA;
+    m_Texture->Format.SignX = GPUSIGN_GAMMA;
+    m_Texture->Format.SignY = GPUSIGN_GAMMA;
+    m_Texture->Format.SignZ = GPUSIGN_GAMMA;
 
     // Define some vertices to draw
 	struct COLORVERTEX
@@ -451,10 +425,10 @@ HRESULT Demo_360::InitApp()
 
     g_pd3dDevice->CreateIndexBuffer( NumIndices * sizeof( WORD ),
                                      D3DUSAGE_WRITEONLY, D3DFMT_INDEX16,
-                                     D3DPOOL_DEFAULT, &pIndexBuffer, NULL );
+                                     D3DPOOL_DEFAULT, &m_IndexBuffer, NULL );
     // Fill the index buffer
     WORD* pIndices;
-    pIndexBuffer->Lock( 0, 0, ( VOID** )&pIndices, 0 );
+    m_IndexBuffer->Lock( 0, 0, ( VOID** )&pIndices, 0 );
     UINT Index = 0;
     for( INT i = 0; i < Height; i++ )
     {
@@ -472,7 +446,7 @@ HRESULT Demo_360::InitApp()
             pIndices[Index++] = ( WORD )( ( i + 1 ) * ( Width + 1 ) );
         }
     }
-    pIndexBuffer->Unlock();
+    m_IndexBuffer->Unlock();
 
     // Define the vertex elements
     static const D3DVERTEXELEMENT9 VertexElements[3] =
@@ -482,21 +456,21 @@ HRESULT Demo_360::InitApp()
         D3DDECL_END()
     };
 
-    g_pd3dDevice->CreateVertexDeclaration( VertexElements, &pVertexDecl );
+    g_pd3dDevice->CreateVertexDeclaration( VertexElements, &m_VertexDecl );
 
 	g_matWorld = XMMatrixIdentity();
 
 	// Projection Matrix
-	FLOAT fAspect = ( g_bWidescreen ) ? (16.0f / 9.0f) : (4.0f / 3.0f);
-	g_matProj = XMMatrixPerspectiveFovLH(XM_PIDIV4, fAspect, 1.0f, 200.0f);
+	FLOAT fAspectRatio = ( FLOAT )m_d3dpp.BackBufferWidth / ( FLOAT )m_d3dpp.BackBufferHeight;
 
-	// Initialize the view matrix
-    XMVECTOR vEyePt    = { 0.0f, 0.0f,-7.0f, 0.0f };
-    XMVECTOR vLookatPt = { 0.0f, 0.0f, 0.0f, 0.0f };
-    XMVECTOR vUp       = { 0.0f, 1.0f, 0.0f, 0.0f };
-    g_matView = XMMatrixLookAtLH( vEyePt, vLookatPt, vUp );
+    XMVECTOR m_vEye = XMVectorSet( 0.0f, 0.0f, -7.0f, 0.0f );
+    XMVECTOR m_vLookAt = XMVectorSet( 0.0f, 0.0f, 0.0f, 0.0f );
+    XMVECTOR m_vUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
 
-
+    // Set the transform matrices
+    g_matWorld = XMMatrixIdentity();
+    g_matView = XMMatrixLookAtLH( m_vEye, m_vLookAt, m_vUp );
+    g_matProj = XMMatrixPerspectiveFovLH( XM_PI / 4, fAspectRatio, 0.01f, 100.0f );
 
 	return S_OK;
 }
@@ -536,8 +510,44 @@ HRESULT Demo_360::Update()
 
 HRESULT Demo_360::Render()
 {
+		g_pd3dDevice->Clear(0L, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER|D3DCLEAR_STENCIL, D3DCOLOR_XRGB(0,0,255), 1.0f, 0L);
+
+		g_pd3dDevice->SetRenderState( D3DRS_ZENABLE, TRUE );
+		g_pd3dDevice->SetRenderState( D3DRS_ALPHABLENDENABLE, FALSE );
+	//	g_pd3dDevice->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
+
+		// Set shaders
+        g_pd3dDevice->SetVertexShader( m_pBoxVS );
+        g_pd3dDevice->SetPixelShader( m_pBoxPS );
+
+		g_pd3dDevice->SetStreamSource( 0, m_pInnerBoxVB, 0, sizeof( BOXVERTEX ) );
+		g_pd3dDevice->SetIndices( m_IndexBuffer );
+
+		// Set the vertex declaration
+		g_pd3dDevice->SetVertexDeclaration( m_VertexDecl );
+
+		// Configure sampler 0 for trilinear sampling
+		g_pd3dDevice->SetSamplerState( 0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR );
+		g_pd3dDevice->SetSamplerState( 0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR );
+		g_pd3dDevice->SetSamplerState( 0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR );
+
+		// Set texture 0
+		g_pd3dDevice->SetTexture( 0, m_Texture );
+
+		// Set the stream source
+	
+
+		// Set the index buffer
 
 
-	return S_OK;
+				    // Setup the vertex shader inputs.
+		XMMATRIX matWVP = g_matWorld * g_matView * g_matProj;
+		matWVP = XMMatrixTranspose( matWVP );
+        // Set shader constants
+        g_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&matWVP, 4 );
+		g_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
+		g_pd3dDevice->Present(NULL, NULL, NULL, NULL);
+
+		return S_OK;
 }
 

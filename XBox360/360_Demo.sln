@@ -48,7 +48,6 @@ Global
 		{04A99EB3-6ACE-435E-BEBA-A3C829338E7E}.Release|Win32.Build.0 = Release|Win32
 		{04A99EB3-6ACE-435E-BEBA-A3C829338E7E}.Release|Xbox 360.ActiveCfg = Release|Xbox 360
 		{04A99EB3-6ACE-435E-BEBA-A3C829338E7E}.Release|Xbox 360.Build.0 = Release|Xbox 360
-		{04A99EB3-6ACE-435E-BEBA-A3C829338E7E}.Release|Xbox 360.Deploy.0 = Release|Xbox 360
 		{91D208A6-9936-47FD-9659-67205C3EB0AB}.CodeAnalysis|Win32.ActiveCfg = CodeAnalysis|Win32
 		{91D208A6-9936-47FD-9659-67205C3EB0AB}.CodeAnalysis|Win32.Build.0 = CodeAnalysis|Win32
 		{91D208A6-9936-47FD-9659-67205C3EB0AB}.CodeAnalysis|Xbox 360.ActiveCfg = CodeAnalysis|Xbox 360
@@ -78,7 +77,6 @@ Global
 		{91D208A6-9936-47FD-9659-67205C3EB0AB}.Release|Win32.Build.0 = Release|Win32
 		{91D208A6-9936-47FD-9659-67205C3EB0AB}.Release|Xbox 360.ActiveCfg = Release|Xbox 360
 		{91D208A6-9936-47FD-9659-67205C3EB0AB}.Release|Xbox 360.Build.0 = Release|Xbox 360
-		{91D208A6-9936-47FD-9659-67205C3EB0AB}.Release|Xbox 360.Deploy.0 = Release|Xbox 360
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

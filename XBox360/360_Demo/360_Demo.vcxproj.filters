@@ -28,10 +28,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Textures\Rocks.tga" />
-    <None Include="Shaders\depth.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Release\Media\Textures\Rocks.tga" />
     <CustomBuild Include="Media\Textures\Rocks.tga" />
+    <CustomBuild Include="Shaders\FloatDepth.hlsl" />
   </ItemGroup>
 </Project>

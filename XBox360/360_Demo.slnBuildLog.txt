@@ -1,0 +1,9 @@
+﻿Build started 25/04/2026 11:46:29.
+     1>Project "C:\Program Files (x86)\Microsoft Xbox 360 SDK\Source\Samples\Common\AtgFramework2010.vcxproj" on node 2 (build target(s)).
+     1>C:\Windows\Microsoft.NET\Framework\v4.0.30319\Microsoft.Common.Targets(1605,5): warning MSB3088: Could not read state file "Release\AtgFramework2010.vcxprojResolveAssemblyReference.cache". Access to the path 'C:\Program Files (x86)\Microsoft Xbox 360 SDK\Source\Samples\Common\Release\AtgFramework2010.vcxprojResolveAssemblyReference.cache' is denied.
+     1>C:\Program Files (x86)\MSBuild\Microsoft.Cpp\v4.0\Microsoft.CppBuild.targets(253,5): error MSB3491: Could not write lines to file "Release\AtgFramework.lastbuildstate". Access to the path 'C:\Program Files (x86)\Microsoft Xbox 360 SDK\Source\Samples\Common\Release\AtgFramework.lastbuildstate' is denied.
+     1>Done Building Project "C:\Program Files (x86)\Microsoft Xbox 360 SDK\Source\Samples\Common\AtgFramework2010.vcxproj" (build target(s)) -- FAILED.
+
+Build FAILED.
+
+Time Elapsed 00:00:00.01
