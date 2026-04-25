@@ -57,10 +57,11 @@ const CHAR*         g_strVertexShaderProgram =
 	"     float3 normalW = mul(float4(In.Norm, 0.0f), g_InvWorld).xyz;       "
 	"	  normalW = normalize(normalW); "
 	"     float3 posW = mul(float4(In.ObjPos, 1.0f), gWorld).xyz;  "
-	"     float s = max(dot(gLightVecW, normalW), 0.0f);"
-	"     Out.Diffuse = s * (float4(0.3f, 0.3f, 0.3f, 1.0f) * gDiffuseLight);"
+	"      float3 lightVecW = normalize(gLightVecW.xyz);"
+	"     float s = max(dot(lightVecW, normalW), 0.0f);"
+	"     Out.Diffuse = s * (float4(0.8f, 0.8f, 0.8f, 1.0f) * gDiffuseLight);"
 	"float3 toEye = normalize(gEyePosW.xyz - posW);"
-	"float3 r = reflect(-gLightVecW, normalW);"
+	"float3 r = reflect(-lightVecW, normalW);"
 	"float t  = pow(max(dot(r, toEye), 0.0f), gSpecularPower.r);			  "
 	"float3 spec = t*(gSpecularMtrl*gSpecularLight).rgb;				  "
 "    Out.Spec = float4(spec, 1.0f);"
@@ -88,7 +89,7 @@ const CHAR*         g_strPixelShaderProgram =
     " {                                            "
 	"     float3 texColor = tex2D(ColorTexture, In.UV).rgb;"
 	"     float3 finalCol = In.Diffuse.rgb * texColor; "
-    "     return float4(finalCol + In.Spec.rgb, 1.0f);    "  
+    "     return float4(finalCol + In.Spec.rgb, In.Diffuse.a);    "  
     " }                                            ";
 
 //-------------------------------------------------------------------------------------
@@ -461,9 +462,9 @@ HRESULT Demo_360::Initialize()
 
 	m_LightVecW = XMFLOAT4(-0.5f, 0.75f, -2.0f, 0.0f);
 	m_DiffuseLight = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	m_SpecularMtrl  = XMFLOAT4(0.8f, 0.8f, 0.8f, 1.0f);
+	m_SpecularMtrl  = XMFLOAT4(0.18f, 0.18f, 0.18f, 1.0f);
 	m_SpecularLight = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	m_SpecularPower = XMFLOAT4(8.0f, 8.0f, 8.0f, 8.0f);
+	m_SpecularPower = XMFLOAT4(32.0f, 32.0f, 32.0f, 32.0f);
 	return S_OK;
 }
 
@@ -675,9 +676,9 @@ HRESULT Demo_360::Update()
 	XMMATRIX matWVP = g_matWorld * g_matView * g_matProj;
 	g_MatWVP = XMMatrixTranspose( matWVP );
 	g_InvWorld = XMMatrixInverse(&XMMatrixDeterminant(g_matWorld), g_matWorld);
-	g_InvWorld = XMMatrixTranspose(g_InvWorld);
+//	g_InvWorld = XMMatrixTranspose(g_InvWorld);
 	g_InvWorld2 = XMMatrixInverse(&XMMatrixDeterminant(g_matWorld2), g_matWorld2);
-	g_InvWorld2 = XMMatrixTranspose(g_InvWorld2);
+//	g_InvWorld2 = XMMatrixTranspose(g_InvWorld2);
 	XMMATRIX matWVP2 = g_matWorld2 * g_matView * g_matProj;
 	g_MatWVP2 = XMMatrixTranspose( matWVP2 );
 	
