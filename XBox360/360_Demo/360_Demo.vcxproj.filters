@@ -28,7 +28,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Textures\Rocks.tga" />
-    <None Include="Media\Fonts\Arial_16.xpr" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Release\Media\Textures\Rocks.tga" />
@@ -37,5 +36,6 @@
     <CustomBuild Include="Release\Media\Textures\crate.tga" />
     <CustomBuild Include="Media\Textures\crate.tga" />
     <CustomBuild Include="Release\Media\Fonts\Arial_16.xpr" />
+    <CustomBuild Include="Media\Fonts\Arial_16.xpr" />
   </ItemGroup>
 </Project>

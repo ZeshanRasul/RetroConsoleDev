@@ -41,6 +41,7 @@ const CHAR*         g_strVertexShaderProgram =
     " {                                            "
     "     float4 ProjPos  : POSITION0;              "  
 	"	  float2 UV         : TEXCOORD0;"
+	"      float4 Diffuse : COLOR0;"
     " };                                           "
     "                                              "
     " VS_OUT main( VS_IN In )                      "
@@ -50,6 +51,7 @@ const CHAR*         g_strVertexShaderProgram =
 	"     float3 normalW = mul(float4(In.Norm, 0.0f), g_InvWorld).xyz;       "
 	"	  normalW = normalize(normalW); "
 	"     float s = max(dot(gLightVecW, normalW), 0.0f);"
+	"     Out.Diffuse = s * (float4(0.3f, 0.3f, 0.3f, 1.0f) * gDiffuseLight);"
 	"	  Out.UV = In.UV;	"
     "     return Out;                              "  
     " }                                            ";
@@ -66,13 +68,14 @@ const CHAR*         g_strPixelShaderProgram =
     " {                                            "
    "     float4 ProjPos  : POSITION0;              "  
 	"      float2 UV          : TEXCOORD0;"
+	"      float4 Diffuse : COLOR0;"
     " };                                           "  
     "                                              "
     " float4 main( PS_IN In ) : COLOR              "
     " {                                            "
 	"     float3 texColor = tex2D(ColorTexture, In.UV).rgb;"
-	"     float3 diffuse = texColor; "
-    "     return float4(diffuse, 1.0f);    "  
+	"     float3 finalCol = In.Diffuse.rgb * texColor; "
+    "     return float4(finalCol, 1.0f);    "  
     " }                                            ";
 
 //-------------------------------------------------------------------------------------
@@ -439,7 +442,7 @@ HRESULT Demo_360::Initialize()
 	g_matWorld2 = g_matWorld2 * Scaling;
 
 	m_LightVecW = XMFLOAT4(-0.5f, 0.75f, -2.0f, 0.0f);
-	m_DiffuseLight = XMFLOAT4(0.8f, 0.1f, 0.1f, 1.0f);
+	m_DiffuseLight = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 	return S_OK;
 }
 

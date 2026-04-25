@@ -70,7 +70,9 @@
     <CustomBuild Include="Release\Media\Textures\crate.tga">
       <FileType>Document</FileType>
     </CustomBuild>
-    <None Include="Media\Fonts\Arial_16.xpr" />
+    <CustomBuild Include="Media\Fonts\Arial_16.xpr">
+      <FileType>Document</FileType>
+    </CustomBuild>
     <CustomBuild Include="Media\Textures\crate.tga">
       <FileType>Document</FileType>
     </CustomBuild>
