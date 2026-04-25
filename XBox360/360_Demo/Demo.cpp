@@ -29,7 +29,12 @@ const CHAR*         g_strVertexShaderProgram =
     "												"
 	" float4 gLightVecW : register(c4);    			"
 	" float4 gDiffuseLight : register(c5); 			"
-	"float4x4 g_InvWorld : register(c6);											"
+	"float4x4 g_InvWorld : register(c6);            "
+	" float4 gSpecularMtrl : register(c10);"
+	" float4 gSpecularLight : register(c11);"
+	" float4 gSpecularPower : register(c12);"
+	" float4 gEyePosW        : register(c13);"
+	" float4x4 gWorld        : register(c14);"
 	" struct VS_IN                                 "
     " {                                            "
     "     float3 ObjPos : POSITION0;                "  
@@ -42,6 +47,7 @@ const CHAR*         g_strVertexShaderProgram =
     "     float4 ProjPos  : POSITION0;              "  
 	"	  float2 UV         : TEXCOORD0;"
 	"      float4 Diffuse : COLOR0;"
+	"      float4 Spec : COLOR1;  "
     " };                                           "
     "                                              "
     " VS_OUT main( VS_IN In )                      "
@@ -50,8 +56,14 @@ const CHAR*         g_strVertexShaderProgram =
 	"     Out.ProjPos = mul(float4(In.ObjPos, 1.0f), matWVP );  " 
 	"     float3 normalW = mul(float4(In.Norm, 0.0f), g_InvWorld).xyz;       "
 	"	  normalW = normalize(normalW); "
+	"     float3 posW = mul(float4(In.ObjPos, 1.0f), gWorld).xyz;  "
 	"     float s = max(dot(gLightVecW, normalW), 0.0f);"
 	"     Out.Diffuse = s * (float4(0.3f, 0.3f, 0.3f, 1.0f) * gDiffuseLight);"
+	"float3 toEye = normalize(gEyePosW.xyz - posW);"
+	"float3 r = reflect(-gLightVecW, normalW);"
+	"float t  = pow(max(dot(r, toEye), 0.0f), gSpecularPower.r);			  "
+	"float3 spec = t*(gSpecularMtrl*gSpecularLight).rgb;				  "
+"    Out.Spec = float4(spec, 1.0f);"
 	"	  Out.UV = In.UV;	"
     "     return Out;                              "  
     " }                                            ";
@@ -69,13 +81,14 @@ const CHAR*         g_strPixelShaderProgram =
    "     float4 ProjPos  : POSITION0;              "  
 	"      float2 UV          : TEXCOORD0;"
 	"      float4 Diffuse : COLOR0;"
+	"       float4 Spec : COLOR1;"
     " };                                           "  
     "                                              "
     " float4 main( PS_IN In ) : COLOR              "
     " {                                            "
 	"     float3 texColor = tex2D(ColorTexture, In.UV).rgb;"
 	"     float3 finalCol = In.Diffuse.rgb * texColor; "
-    "     return float4(finalCol, 1.0f);    "  
+    "     return float4(finalCol + In.Spec.rgb, 1.0f);    "  
     " }                                            ";
 
 //-------------------------------------------------------------------------------------
@@ -249,10 +262,15 @@ public:
 	XMMATRIX m_MatWVP;
 	XMFLOAT4 m_LightVecW;
 	XMFLOAT4 m_DiffuseLight;
+	XMFLOAT4 m_SpecularMtrl; 
+	XMFLOAT4 m_SpecularLight;
+	XMFLOAT4 m_SpecularPower;
 
 	float m_CameraRotationY;
 	float m_CameraRadius;
 	float m_CameraHeight;
+
+	XMFLOAT4 m_vEye;
 };
 
 void _cdecl main()
@@ -426,13 +444,13 @@ HRESULT Demo_360::Initialize()
 	// Projection Matrix
 	FLOAT fAspectRatio = ( FLOAT )m_d3dpp.BackBufferWidth / ( FLOAT )m_d3dpp.BackBufferHeight;
 
-    XMVECTOR m_vEye = XMVectorSet( 0.0f, 3.0f, -27.0f, 0.0f );
+	m_vEye = XMFLOAT4( 0.0f, 3.0f, -27.0f, 0.0f );
     XMVECTOR m_vLookAt = XMVectorSet( 0.0f, 0.0f, 0.0f, 0.0f );
     XMVECTOR m_vUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
 
     // Set the transform matrices
     g_matWorld = XMMatrixIdentity();
-    g_matView = XMMatrixLookAtLH( m_vEye, m_vLookAt, m_vUp );
+    g_matView = XMMatrixLookAtLH( XMVectorSet(m_vEye.x, m_vEye.y, m_vEye.z, m_vEye.w), m_vLookAt, m_vUp );
     g_matProj = XMMatrixPerspectiveFovLH( XM_PI / 4, fAspectRatio, 0.01f, 100.0f );
 
 	g_matWorld2 = XMMatrixIdentity();
@@ -443,6 +461,9 @@ HRESULT Demo_360::Initialize()
 
 	m_LightVecW = XMFLOAT4(-0.5f, 0.75f, -2.0f, 0.0f);
 	m_DiffuseLight = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	m_SpecularMtrl  = XMFLOAT4(0.8f, 0.8f, 0.8f, 1.0f);
+	m_SpecularLight = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+	m_SpecularPower = XMFLOAT4(8.0f, 8.0f, 8.0f, 8.0f);
 	return S_OK;
 }
 
@@ -592,13 +613,13 @@ HRESULT Demo_360::InitApp()
 	// Projection Matrix
 	FLOAT fAspectRatio = ( FLOAT )m_d3dpp.BackBufferWidth / ( FLOAT )m_d3dpp.BackBufferHeight;
 
-    XMVECTOR m_vEye = XMVectorSet( 0.0f, 3.0f, -27.0f, 0.0f );
+    m_vEye = XMFLOAT4( 0.0f, 3.0f, -27.0f, 0.0f );
     XMVECTOR m_vLookAt = XMVectorSet( 0.0f, 0.0f, 0.0f, 0.0f );
     XMVECTOR m_vUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
 
     // Set the transform matrices
     g_matWorld = XMMatrixIdentity();
-    g_matView = XMMatrixLookAtLH( m_vEye, m_vLookAt, m_vUp );
+    g_matView = XMMatrixLookAtLH( XMVectorSet(m_vEye.x, m_vEye.y, m_vEye.z, m_vEye.w), m_vLookAt, m_vUp );
     g_matProj = XMMatrixPerspectiveFovLH( XM_PI / 4, fAspectRatio, 0.01f, 100.0f );
 
 	g_matWorld2 = XMMatrixIdentity();
@@ -689,17 +710,22 @@ HRESULT Demo_360::Render()
 		// Set texture 0
 		m_pd3dDevice->SetTexture( 0, m_Texture );
 
-
         // Draw Box
         m_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&g_MatWVP, 4 );
 		m_pd3dDevice->SetVertexShaderConstantF(4, (FLOAT*)&m_LightVecW, 1);
 		m_pd3dDevice->SetVertexShaderConstantF(5, (FLOAT*)&m_DiffuseLight, 1);
 		m_pd3dDevice->SetVertexShaderConstantF( 6, ( FLOAT* )&g_InvWorld, 4 );
+		m_pd3dDevice->SetVertexShaderConstantF( 10, ( FLOAT* )&m_SpecularMtrl, 1 );
+		m_pd3dDevice->SetVertexShaderConstantF( 11, ( FLOAT* )&m_SpecularLight, 1 );
+		m_pd3dDevice->SetVertexShaderConstantF( 12, ( FLOAT* )&m_SpecularPower, 1 );
+		m_pd3dDevice->SetVertexShaderConstantF(13, (FLOAT*)&m_vEye, 1);
+		m_pd3dDevice->SetVertexShaderConstantF(14, (FLOAT*)&g_matWorld, 1);
 		m_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
 
         // Draw Ground Box
         m_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&g_MatWVP2, 4 );
 		m_pd3dDevice->SetVertexShaderConstantF( 6, ( FLOAT* )&g_InvWorld2, 4 );
+		m_pd3dDevice->SetVertexShaderConstantF(14, (FLOAT*)&g_matWorld2, 1);
 		m_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
 
 		// Output title and framerate
