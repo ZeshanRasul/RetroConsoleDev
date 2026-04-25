@@ -1,5 +1,6 @@
 #include <xtl.h>
 #include <xboxmath.h>
+
 #include <iostream>
 
 #include <xgraphics.h>
@@ -20,9 +21,6 @@
 
 //--------------------------------------------------------------------------------------
 // Vertex shader
-// We use the register semantic here to directly define the input register
-// matWVP.  Conversely, we could let the HLSL compiler decide and check the
-// constant table.
 //--------------------------------------------------------------------------------------
 const CHAR*         g_strVertexShaderProgram =
     "                                              "
@@ -34,14 +32,14 @@ const CHAR*         g_strVertexShaderProgram =
 	"float4x4 g_InvWorld : register(c6);											"
 	" struct VS_IN                                 "
     " {                                            "
-    "     float3 ObjPos : POSITION0;                "  // Object space position 
+    "     float3 ObjPos : POSITION0;                "  
 	"	  float3 Norm   : NORMAL;	"
     "     float2 UV     : TEXCOORD0;                  "  
     " };                                           "
     "                                              "
     " struct VS_OUT                                "
     " {                                            "
-    "     float4 ProjPos  : POSITION0;              "  // Projected space position 
+    "     float4 ProjPos  : POSITION0;              "  
 	"	  float2 UV         : TEXCOORD0;"
     " };                                           "
     "                                              "
@@ -51,17 +49,14 @@ const CHAR*         g_strVertexShaderProgram =
 	"     Out.ProjPos = mul(float4(In.ObjPos, 1.0f), matWVP );  " 
 	"     float3 normalW = mul(float4(In.Norm, 0.0f), g_InvWorld).xyz;       "
 	"	  normalW = normalize(normalW); "
-	"     float s = max(dot(gLightVecW, normalW), 0.0f);"// Transform vertex into 
+	"     float s = max(dot(gLightVecW, normalW), 0.0f);"
 	"	  Out.UV = In.UV;	"
-    "     return Out;                              "  // Transfer UVs
+    "     return Out;                              "  
     " }                                            ";
 
 
 //-------------------------------------------------------------------------------------
 // Pixel shader
-// We use the register semantic here to directly define the input sampler
-// ColorTexture.  Conversely, we could let the HLSL compiler decide and check
-// the constant table.
 //-------------------------------------------------------------------------------------
 const CHAR*         g_strPixelShaderProgram =
     " sampler2D ColorTexture : register(s0);       "
@@ -69,15 +64,15 @@ const CHAR*         g_strPixelShaderProgram =
 	"         "
     " struct PS_IN                                 "
     " {                                            "
-   "     float4 ProjPos  : POSITION0;              "  // Projected space position 
+   "     float4 ProjPos  : POSITION0;              "  
 	"      float2 UV          : TEXCOORD0;"
-    " };                                           "  // the vertex shader 
+    " };                                           "  
     "                                              "
     " float4 main( PS_IN In ) : COLOR              "
     " {                                            "
 	"     float3 texColor = tex2D(ColorTexture, In.UV).rgb;"
 	"     float3 diffuse = texColor; "
-    "     return float4(diffuse, 1.0f);    "  // Sample texture and output
+    "     return float4(diffuse, 1.0f);    "  
     " }                                            ";
 
 //-------------------------------------------------------------------------------------
@@ -94,7 +89,7 @@ XMMATRIX g_InvWorld;
 XMMATRIX g_InvWorld2;
 
 BOOL g_bWidescreen = TRUE;
-
+float dt = 1.0f / 60.0f;
 //--------------------------------------------------------------------------------------
 // Globals variables and definitions
 //--------------------------------------------------------------------------------------
@@ -145,7 +140,6 @@ BOXVERTEX g_BoxVertices[4*6] =
     { XMFLOAT3(  1.0f, 1.0f, -1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f ), XMFLOAT2(1.0f, 0.0f) },
     { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f ), XMFLOAT2(0.0f, 0.0f) },
 };
-
 
 class Demo_360 : public ATG::Application
 {
@@ -219,6 +213,8 @@ public:
     virtual HRESULT Update();
     virtual HRESULT Render();
 
+	void BuildViewMatrix();
+
 	// Vertex buffers
 	LPDIRECT3DVERTEXBUFFER9 m_pInnerBoxVB;
 	LPDIRECT3DVERTEXBUFFER9 m_pOuterBoxVB;
@@ -236,12 +232,16 @@ public:
 	XMMATRIX m_MatWVP;
 	XMFLOAT4 m_LightVecW;
 	XMFLOAT4 m_DiffuseLight;
+
+	float m_CameraRotationY;
+	float m_CameraRadius;
+	float m_CameraHeight;
 };
 
 void _cdecl main()
 {
 	Demo_360 app;
-
+	app.Initialize();
 	if( FAILED( app.InitD3D() ) )
         return;
 
@@ -257,6 +257,10 @@ void _cdecl main()
 
 HRESULT Demo_360::Initialize()
 {
+	m_CameraRadius    = 16.0f;
+	m_CameraRotationY = 1.2 * D3DX_PI;
+	m_CameraHeight    = 3.0f;
+
 	return S_OK;
 }
 
@@ -463,28 +467,33 @@ HRESULT Demo_360::Update()
 
 	if( m_pGamepad->wPressedButtons & XINPUT_GAMEPAD_DPAD_UP )
 	{
-            XMMATRIX Translation = XMMatrixTranslation(0, 1, 0);
-			g_matWorld = g_matWorld * Translation;
+            m_CameraHeight   += 25.0f * dt;
 	}
 
 	if( m_pGamepad->wPressedButtons & XINPUT_GAMEPAD_DPAD_DOWN )
 	{
-            XMMATRIX Translation = XMMatrixTranslation(0, -1, 0);
-			g_matWorld = g_matWorld * Translation;
+            m_CameraHeight   -= 25.0f * dt;
 	}
 
 	if( m_pGamepad->wPressedButtons & XINPUT_GAMEPAD_DPAD_LEFT )
 	{
-            XMMATRIX Translation = XMMatrixTranslation(-1, 0, 0);
-			g_matWorld = g_matWorld * Translation;
+            m_CameraRotationY   += 25.0f * dt;
 	}
 
 	if( m_pGamepad->wPressedButtons & XINPUT_GAMEPAD_DPAD_RIGHT )
 	{
-            XMMATRIX Translation = XMMatrixTranslation(1, 0, 0);
-			g_matWorld = g_matWorld * Translation;
+            m_CameraRotationY   -= 25.0f * dt;
 	}
 
+		// If we rotate over 360 degrees, just roll back to 0
+	if( fabsf(m_CameraRotationY) >= 2.0f * D3DX_PI ) 
+		m_CameraRotationY = 0.0f;
+
+	// Don't let radius get too small.
+	if( m_CameraRadius < 5.0f )
+		m_CameraRadius = 5.0f;
+
+	BuildViewMatrix();
 
 	return S_OK;
 }
@@ -549,3 +558,18 @@ HRESULT Demo_360::Render()
 		return S_OK;
 }
 
+void Demo_360::BuildViewMatrix()
+{
+	float x = m_CameraRadius * cosf(m_CameraRotationY);
+	float z = m_CameraRadius * sinf(m_CameraRotationY);
+
+	FLOAT fAspectRatio = ( FLOAT )m_d3dpp.BackBufferWidth / ( FLOAT )m_d3dpp.BackBufferHeight;
+
+    XMVECTOR m_vEye = XMVectorSet( x, m_CameraHeight, z, 0.0f );
+    XMVECTOR m_vLookAt = XMVectorSet( 0.0f, 0.0f, 0.0f, 0.0f );
+    XMVECTOR m_vUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
+
+    g_matView = XMMatrixLookAtLH( m_vEye, m_vLookAt, m_vUp );
+
+	g_matProj = XMMatrixPerspectiveFovLH( XM_PI / 4, fAspectRatio, 0.01f, 5000.0f );
+}
