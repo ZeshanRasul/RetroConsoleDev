@@ -1,13 +1,21 @@
 #include <xtl.h>
 #include <xboxmath.h>
 #include <iostream>
-#include <xboxmath.h>
+
+#include <xgraphics.h>
 #include <AtgApp.h>
 #include <AtgFont.h>
+
 #include <AtgMesh.h>
-#include <AtgInput.cpp>
+
+#include <AtgHelp.h>
+#include <AtgInput.h>
+
 #include <AtgResource.h>
+
 #include <AtgUtil.h>
+
+#include <d3d9.h>
 
 //--------------------------------------------------------------------------------------
 // Vertex shader
@@ -71,17 +79,86 @@ D3DVertexShader*       g_pVertexShader; // Vertex Shader
 D3DPixelShader*        g_pPixelShader;  // Pixel Shader
 
 
+IDirect3DTexture9* pTexture;
+IDirect3DVertexDeclaration9* pVertexDecl;
+IDirect3DVertexShader9* pVertexShader;
+IDirect3DPixelShader9* pPixelShader;
+IDirect3DIndexBuffer9* pIndexBuffer;
 XMMATRIX g_matWorld;
 XMMATRIX g_matProj;
 XMMATRIX g_matView;
 
 BOOL g_bWidescreen = TRUE;
+// Vertex buffers
+LPDIRECT3DVERTEXBUFFER9 m_pInnerBoxVB;
+LPDIRECT3DVERTEXBUFFER9 m_pOuterBoxVB;
 
+// Shaders
+LPDIRECT3DVERTEXSHADER9 m_pBoxVS;
+LPDIRECT3DPIXELSHADER9 m_pBoxPS;
+//--------------------------------------------------------------------------------------
+// Globals variables and definitions
+//--------------------------------------------------------------------------------------
+const FLOAT g_fInnerBoxColor[] = { 0.8f, 0.0f, 0.0f, 1.0f };
+const FLOAT g_fOuterBoxColor[] = { 0.0f, 0.8f, 0.0f, 1.0f };
 
+// Structure to hold vertex data.
+struct BOXVERTEX
+{
+    XMFLOAT3 Position;
+    XMFLOAT3 Normal;
+};
+
+// Unit box
+BOXVERTEX g_BoxVertices[4*6] =
+{
+    // Front
+    { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ) },
+    { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ) },
+    { XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ) },
+    { XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ) },
+
+    // Back
+    { XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ) },
+    { XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ) },
+    { XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ) },
+    { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ) },
+
+    // Left
+    { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT3( -1.0f, 0.0f, 0.0f ) },
+    { XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT3( -1.0f, 0.0f, 0.0f ) },
+    { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3( -1.0f, 0.0f, 0.0f ) },
+    { XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT3( -1.0f, 0.0f, 0.0f ) },
+
+    // Right
+    { XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT3( 1.0f, 0.0f, 0.0f ) },
+    { XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT3( 1.0f, 0.0f, 0.0f ) },
+    { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT3( 1.0f, 0.0f, 0.0f ) },
+    { XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT3( 1.0f, 0.0f, 0.0f ) },
+
+    // Bottom
+    { XMFLOAT3( -1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ) },
+    { XMFLOAT3( 1.0f, -1.0f, 1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ) },
+    { XMFLOAT3( 1.0f, -1.0f, -1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ) },
+    { XMFLOAT3( -1.0f, -1.0f, -1.0f ), XMFLOAT3( 0.0f, -1.0f, 0.0f ) },
+
+    // Top
+    { XMFLOAT3( -1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ) },
+    { XMFLOAT3( 1.0f, 1.0f, 1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ) },
+    { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ) },
+    { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 1.0f, 0.0f ) },
+};
 
 
 class Demo_360 : public ATG::Application
 {
+	ATG::Timer m_Timer;    // Timer
+    ATG::Font m_Font;     // Font for drawing text
+    ATG::Help m_Help;
+    BOOL m_bDrawHelp;
+    BOOL m_bFloatDepth;
+    BOOL m_bWireframe;
+
     // Valid app states
     enum APPSTATE
     {
@@ -95,7 +172,7 @@ class Demo_360 : public ATG::Application
 
     // General application members
     APPSTATE m_AppState;         // State of the app
-    ATG::Timer m_Timer;            // Timer for the app
+            // Timer for the app
 
     // Active gamepad
     ATG::GAMEPAD* m_pGamepad;
@@ -153,20 +230,120 @@ void _cdecl main()
 
 	if( FAILED( app.InitD3D() ) )
         return;
+
+	app.InitScene();
+	app.InitApp();
+	for (;;)
+	{
+		app.Update();
+		g_pd3dDevice->Clear(0L, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER|D3DCLEAR_STENCIL, D3DCOLOR_XRGB(0,0,255), 1.0f, 0L);
+
+		// Set shaders
+		g_pd3dDevice->SetVertexShader( pVertexShader );
+		g_pd3dDevice->SetPixelShader( pPixelShader );
+
+		// Set the vertex declaration
+		g_pd3dDevice->SetVertexDeclaration( pVertexDecl );
+
+		// Configure sampler 0 for trilinear sampling
+		g_pd3dDevice->SetSamplerState( 0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR );
+		g_pd3dDevice->SetSamplerState( 0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR );
+		g_pd3dDevice->SetSamplerState( 0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR );
+
+		// Set texture 0
+		g_pd3dDevice->SetTexture( 0, pTexture );
+
+		// Set the stream source
+		g_pd3dDevice->SetStreamSource( 0, m_pInnerBoxVB, 0, sizeof( BOXVERTEX ) );
+
+		// Set the index buffer
+		g_pd3dDevice->SetIndices( pIndexBuffer );
+    
+		XMMATRIX matWVP = g_matWorld * g_matView * g_matProj;
+		g_pd3dDevice->SetVertexShaderConstantF(0, (FLOAT*)&matWVP, 4);
+
+		g_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
+		g_pd3dDevice->Present(NULL, NULL, NULL, NULL);
+	}
+
+}
+
+HRESULT Demo_360::Initialize()
+{
+	return S_OK;
+}
+
+HRESULT Demo_360::InitD3D()
+{
+	Direct3D* pD3D = Direct3DCreate9(D3D_SDK_VERSION);
+	if (!pD3D)
+		return E_FAIL;
+
+    D3DPRESENT_PARAMETERS d3dpp;
+    ZeroMemory( &d3dpp, sizeof( d3dpp ) );
+    d3dpp.BackBufferWidth = 1280;
+    d3dpp.BackBufferHeight = 720;
+    d3dpp.BackBufferFormat =  ( D3DFORMAT )MAKESRGBFMT( D3DFMT_A8R8G8B8 );
+    d3dpp.FrontBufferFormat = ( D3DFORMAT )MAKESRGBFMT( D3DFMT_LE_X8R8G8B8 );
+    d3dpp.MultiSampleType = D3DMULTISAMPLE_NONE;
+    d3dpp.MultiSampleQuality = 0;
+    d3dpp.BackBufferCount = 1;
+    d3dpp.EnableAutoDepthStencil = TRUE;
+    d3dpp.AutoDepthStencilFormat = D3DFMT_D24S8;
+    d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
+    d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
+
+	    // Create the Direct3D device.
+    if( FAILED( pD3D->CreateDevice( 0, D3DDEVTYPE_HAL, NULL,
+                                    D3DCREATE_HARDWARE_VERTEXPROCESSING,
+                                    &d3dpp, &g_pd3dDevice ) ) )
+        return E_FAIL;
+
+    return S_OK;
+}
+
+HRESULT Demo_360::InitScene()
+{
+
+    return S_OK;
+}
+
+HRESULT Demo_360::InitApp()
+{
+    m_AppState = APPSTATE_CONTROLTEST;
+    m_fDeadZone = 0.24f;  // Set default deadzone to 24%
+    m_fLeftMotorSpeed = 0.0f;
+    m_fRightMotorSpeed = 0.0f;
+
+    // Quantized control values
+    m_pQuantizedThumbStickValues = new BYTE[256];
+    ZeroMemory( m_pQuantizedThumbStickValues, 256 );
+
+    m_pQuantizedButtonValues = new BYTE[256];
+    ZeroMemory( m_pQuantizedButtonValues, 256 );
+
+		HRESULT hr;
 	
+	    // Create the box vertex shader
+    if( hr = ATG::LoadVertexShader( "game:\\Media\\Shaders\\FloatDepthVS.xvu", &m_pBoxVS ) ) 
+    {
+        ATG_PrintError( "Couldn't create FloatDepthVS.xvu\n" );
+    }
+
+    // Create the box pixel shader
+    if( hr = ATG::LoadPixelShader( "game:\\Media\\Shaders\\FloatDepthPS.xpu", &m_pBoxPS ) ) 
+    {
+        ATG_PrintError( "Couldn't create FloatDepthPS.xpu\n" );
+    }
 
 
-	IDirect3DTexture9* pTexture;
-	IDirect3DVertexDeclaration9* pVertexDecl;
-	IDirect3DVertexShader9* pVertexShader;
-	IDirect3DPixelShader9* pPixelShader;
 	// Structure to hold vertex data
 
 	ID3DXBuffer* pShaderCode = NULL;
     ID3DXBuffer* pErrorMsg = NULL;
 
 	 // Compile vertex shader
-    HRESULT hr = D3DXCompileShader( g_strVertexShaderProgram, ( UINT )strlen( g_strVertexShaderProgram ),
+   hr = D3DXCompileShader( g_strVertexShaderProgram, ( UINT )strlen( g_strVertexShaderProgram ),
                                     NULL, NULL, "main", "vs_2_0", 0,
                                     &pShaderCode, &pErrorMsg, NULL );
     if( FAILED( hr ) )
@@ -242,44 +419,36 @@ void _cdecl main()
     // Number of primitives in stripped mesh
     const UINT NumPrimitives = Width * Height * 2 + ( Height - 1 ) * 4;
 
-    // Number of vertices needed in the vertex buffer
-    UINT NumVertices = ( Width + 1 ) * ( Height + 1 );
+// Create and initialize vertex buffers
+     g_pd3dDevice->CreateVertexBuffer( sizeof( g_BoxVertices ),
+                                                  D3DUSAGE_WRITEONLY,
+                                                  NULL,
+                                                  D3DPOOL_DEFAULT,
+                                                  &m_pInnerBoxVB,
+                                                  NULL ) ;
 
-   	IDirect3DVertexBuffer9* pVertexBuffer;
-    g_pd3dDevice->CreateVertexBuffer( NumVertices * sizeof( COLORVERTEX ),
-                                      D3DUSAGE_WRITEONLY, 0, D3DPOOL_DEFAULT,
-                                      &pVertexBuffer, NULL );
+    // Put the data for the patches into our vertex buffer.
+    BOXVERTEX* pVertices;
 
-    // Fill the vertex buffer
-    COLORVERTEX* pVertices;
-    pVertexBuffer->Lock( 0, 0, ( VOID** )&pVertices, 0 );
-    for( UINT i = 0; i < Height + 1; i++ )
+
+    m_pInnerBoxVB->Lock( 0, 0, ( VOID** )&pVertices, 0 );
+    for( UINT i = 0; i < 4 * 6; i++ )
     {
-        for( UINT j = 0; j < Width + 1; j++ )
-        {
-            XMVECTOR pos;
-            pos.x = ( ( FLOAT )j - ( FLOAT )( Width ) / 2.0f ) * 4.0f / Width;
-            pos.y = ( ( FLOAT )i - ( FLOAT )( Height ) / 2.0f ) * 4.0f / Height;
-            pos.z = 0.2f * cosf( XMVector2Length( pos ).x * 5.0f );
-            pVertices->Position[0] = pos.x;
-            pVertices->Position[1] = pos.y;
-            pVertices->Position[2] = pos.z;
+        // Scale position
+        XMVECTOR Position = XMLoadFloat3( &g_BoxVertices[i].Position );
+        Position = Position;
+        XMStoreVector3( &pVertices[i].Position, Position );
 
-            FLOAT u = ( FLOAT )( j ) / Width;
-            FLOAT v = ( FLOAT )( i ) / Height;
-            pVertices->UV[0] = u;
-            pVertices->UV[1] = v;
-
-            pVertices++;
-        }
+        pVertices[i].Normal = g_BoxVertices[i].Normal;
     }
-    pVertexBuffer->Unlock();
+
+    m_pInnerBoxVB->Unlock();
 
     // Number of indices needed in the index buffer
     UINT NumIndices = ( Width + 1 ) * 2 * Height + 2 * ( Height - 1 );
 
     // Create an index buffer
-    IDirect3DIndexBuffer9* pIndexBuffer;
+
     g_pd3dDevice->CreateIndexBuffer( NumIndices * sizeof( WORD ),
                                      D3DUSAGE_WRITEONLY, D3DFMT_INDEX16,
                                      D3DPOOL_DEFAULT, &pIndexBuffer, NULL );
@@ -328,100 +497,6 @@ void _cdecl main()
     g_matView = XMMatrixLookAtLH( vEyePt, vLookatPt, vUp );
 
 
-	for (;;)
-	{
-		app.Update();
-		g_pd3dDevice->Clear(0L, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER|D3DCLEAR_STENCIL, D3DCOLOR_XRGB(0,0,255), 1.0f, 0L);
-
-		// Set shaders
-		g_pd3dDevice->SetVertexShader( pVertexShader );
-		g_pd3dDevice->SetPixelShader( pPixelShader );
-
-		// Set the vertex declaration
-		g_pd3dDevice->SetVertexDeclaration( pVertexDecl );
-
-		// Configure sampler 0 for trilinear sampling
-		g_pd3dDevice->SetSamplerState( 0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR );
-		g_pd3dDevice->SetSamplerState( 0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR );
-		g_pd3dDevice->SetSamplerState( 0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR );
-
-		// Set texture 0
-		g_pd3dDevice->SetTexture( 0, pTexture );
-
-		// Set the stream source
-		g_pd3dDevice->SetStreamSource( 0, pVertexBuffer, 0, sizeof( COLORVERTEX ) );
-
-		// Set the index buffer
-		g_pd3dDevice->SetIndices( pIndexBuffer );
-    
-		XMMATRIX matWVP = g_matWorld * g_matView * g_matProj;
-		g_pd3dDevice->SetVertexShaderConstantF(0, (FLOAT*)&matWVP, 4);
-
-		g_pd3dDevice->DrawIndexedPrimitive(
-    D3DPT_TRIANGLESTRIP,
-    0,
-    0,
-    NumVertices,
-    0,
-    NumPrimitives
-);
-		g_pd3dDevice->Present(NULL, NULL, NULL, NULL);
-	}
-}
-
-HRESULT Demo_360::Initialize()
-{
-	return S_OK;
-}
-
-HRESULT Demo_360::InitD3D()
-{
-	Direct3D* pD3D = Direct3DCreate9(D3D_SDK_VERSION);
-	if (!pD3D)
-		return E_FAIL;
-
-    D3DPRESENT_PARAMETERS d3dpp;
-    ZeroMemory( &d3dpp, sizeof( d3dpp ) );
-    d3dpp.BackBufferWidth = 1280;
-    d3dpp.BackBufferHeight = 720;
-    d3dpp.BackBufferFormat =  ( D3DFORMAT )MAKESRGBFMT( D3DFMT_A8R8G8B8 );
-    d3dpp.FrontBufferFormat = ( D3DFORMAT )MAKESRGBFMT( D3DFMT_LE_X8R8G8B8 );
-    d3dpp.MultiSampleType = D3DMULTISAMPLE_NONE;
-    d3dpp.MultiSampleQuality = 0;
-    d3dpp.BackBufferCount = 1;
-    d3dpp.EnableAutoDepthStencil = TRUE;
-    d3dpp.AutoDepthStencilFormat = D3DFMT_D24S8;
-    d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
-    d3dpp.PresentationInterval = D3DPRESENT_INTERVAL_ONE;
-
-	    // Create the Direct3D device.
-    if( FAILED( pD3D->CreateDevice( 0, D3DDEVTYPE_HAL, NULL,
-                                    D3DCREATE_HARDWARE_VERTEXPROCESSING,
-                                    &d3dpp, &g_pd3dDevice ) ) )
-        return E_FAIL;
-
-    return S_OK;
-}
-
-HRESULT Demo_360::InitScene()
-{
-
-    return S_OK;
-}
-
-HRESULT Demo_360::InitApp()
-{
-    m_AppState = APPSTATE_CONTROLTEST;
-    m_fDeadZone = 0.24f;  // Set default deadzone to 24%
-    m_fLeftMotorSpeed = 0.0f;
-    m_fRightMotorSpeed = 0.0f;
-
-    // Quantized control values
-    m_pQuantizedThumbStickValues = new BYTE[256];
-    ZeroMemory( m_pQuantizedThumbStickValues, 256 );
-
-    m_pQuantizedButtonValues = new BYTE[256];
-    ZeroMemory( m_pQuantizedButtonValues, 256 );
 
 	return S_OK;
 }

@@ -2,6 +2,9 @@
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "360_Demo", "360_Demo\360_Demo.vcxproj", "{04A99EB3-6ACE-435E-BEBA-A3C829338E7E}"
+	ProjectSection(ProjectDependencies) = postProject
+		{91D208A6-9936-47FD-9659-67205C3EB0AB} = {91D208A6-9936-47FD-9659-67205C3EB0AB}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "AtgFramework", "..\..\..\Program Files (x86)\Microsoft Xbox 360 SDK\Source\Samples\Common\AtgFramework2010.vcxproj", "{91D208A6-9936-47FD-9659-67205C3EB0AB}"
 EndProject

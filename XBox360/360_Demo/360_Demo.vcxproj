@@ -64,7 +64,13 @@
     <CustomBuild Include="Media\Textures\Rocks.tga">
       <FileType>Document</FileType>
     </CustomBuild>
+    <None Include="Shaders\depth.hlsl" />
     <None Include="Textures\Rocks.tga" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\Program Files (x86)\Microsoft Xbox 360 SDK\Source\Samples\Common\AtgFramework2010.vcxproj">
+      <Project>{91d208a6-9936-47fd-9659-67205c3eb0ab}</Project>
+    </ProjectReference>
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{04A99EB3-6ACE-435E-BEBA-A3C829338E7E}</ProjectGuid>
@@ -394,7 +400,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <ProgramDatabaseFile>$(OutDir)$(ProjectName).pdb</ProgramDatabaseFile>
       <SetChecksum>true</SetChecksum>
-      <AdditionalDependencies>xapilib.lib;d3d9.lib;d3dx9.lib;xgraphics.lib;xboxkrnl.lib;xnet.lib;xaudio2.lib;xact3.lib;x3daudio.lib;xmcore.lib;vcomp.lib</AdditionalDependencies>
+      <AdditionalDependencies>d3d9d.lib;d3dx9d.lib;xgraphicsd.lib;xapilibd.lib;xaudiod2.lib;x3daudiod.lib;xmcored.lib;xboxkrnl.lib;xbdm.lib</AdditionalDependencies>
     </Link>
     <Deploy>
       <DeploymentFiles>$(RemoteRoot)=$(ImagePath);$(RemoteRoot)\media=$(OutDir)media;</DeploymentFiles>
