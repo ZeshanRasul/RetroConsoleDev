@@ -28,12 +28,15 @@ const CHAR*         g_strVertexShaderProgram =
     "                                              "
     "                                              "
     " float4x4 matWVP : register(c0);              "
-    "                                              "
-    " struct VS_IN                                 "
+    "												"
+	" float4 gLightVecW : register(c4);    			"
+	" float4 gDiffuseLight : register(c5); 			"
+	"float4x4 g_InvWorld : register(c6);											"
+	" struct VS_IN                                 "
     "                                              "
     " {                                            "
-    "     float4 ObjPos : POSITION0;                "  // Object space position 
-	"	  float3 Norm   : NORMAL0;	"
+    "     float3 ObjPos : POSITION0;                "  // Object space position 
+	"	  float3 Norm   : NORMAL;	"
     "     float3 Col     : COLOR0;                  "  
     " };                                           "
     "                                              "
@@ -46,8 +49,12 @@ const CHAR*         g_strVertexShaderProgram =
     " VS_OUT main( VS_IN In )                      "
     " {                                            "
     "     VS_OUT Out;                              "
-    "     Out.ProjPos = mul(In.ObjPos, matWVP );  "  // Transform vertex into 
-    "     Out.Color = float4(In.Col, 1.0f);                          "  // Projected space and
+	"     Out.ProjPos = mul(float4(In.ObjPos, 1.0f), matWVP );  " 
+	"     float3 normalW = mul(float4(In.Norm, 0.0f), g_InvWorld).xyz;       "
+	"	  normalW = normalize(normalW); "
+	"     float s = max(dot(gLightVecW, normalW), 0.0f);"// Transform vertex into 
+    "     Out.Color.rgb = s * (In.Col * gDiffuseLight).rgb;   "  // Projected space and
+	"	  Out.Color.a = 1.0f;"
     "     return Out;                              "  // Transfer UVs
     " }                                            ";
 
@@ -60,7 +67,8 @@ const CHAR*         g_strVertexShaderProgram =
 //-------------------------------------------------------------------------------------
 const CHAR*         g_strPixelShaderProgram =
     " sampler2D ColorTexture : register(s0);       "
-    "                                              "
+	"         "
+	"         "
     " struct PS_IN                                 "
     " {                                            "
    "     float4 ProjPos  : POSITION0;              "  // Projected space position 
@@ -82,6 +90,8 @@ XMMATRIX g_matWorld;
 XMMATRIX g_matWorld2;
 XMMATRIX g_matProj;
 XMMATRIX g_matView;
+XMMATRIX g_InvWorld;
+XMMATRIX g_InvWorld2;
 
 BOOL g_bWidescreen = TRUE;
 
@@ -227,6 +237,8 @@ public:
 	IDirect3DIndexBuffer9* m_IndexBuffer;
 
 	XMMATRIX m_MatWVP;
+	XMFLOAT4 m_LightVecW;
+	XMFLOAT4 m_DiffuseLight;
 };
 
 void _cdecl main()
@@ -470,7 +482,7 @@ HRESULT Demo_360::InitApp()
 	// Projection Matrix
 	FLOAT fAspectRatio = ( FLOAT )m_d3dpp.BackBufferWidth / ( FLOAT )m_d3dpp.BackBufferHeight;
 
-    XMVECTOR m_vEye = XMVectorSet( 0.0f, 0.0f, -17.0f, 0.0f );
+    XMVECTOR m_vEye = XMVectorSet( 0.0f, 3.0f, -27.0f, 0.0f );
     XMVECTOR m_vLookAt = XMVectorSet( 0.0f, 0.0f, 0.0f, 0.0f );
     XMVECTOR m_vUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
 
@@ -480,10 +492,13 @@ HRESULT Demo_360::InitApp()
     g_matProj = XMMatrixPerspectiveFovLH( XM_PI / 4, fAspectRatio, 0.01f, 100.0f );
 
 	g_matWorld2 = XMMatrixIdentity();
-	XMMATRIX Translation = XMMatrixTranslation(0, -10, 0);
+	XMMATRIX Translation = XMMatrixTranslation(0.0f, -7.0f, 0.0f);
 	g_matWorld2 = g_matWorld2 * Translation;
 	XMMATRIX Scaling = XMMatrixScaling(20.0f, 1.0f, 20.0f);
 	g_matWorld2 = g_matWorld2 * Scaling;
+
+	m_LightVecW = XMFLOAT4(-0.5f, 0.75f, -2.0f, 0.0f);
+	m_DiffuseLight = XMFLOAT4(0.8f, 0.1f, 0.1f, 1.0f);
 
 	return S_OK;
 }
@@ -556,16 +571,24 @@ HRESULT Demo_360::Render()
 				    // Setup the vertex shader inputs.
 		XMMATRIX matWVP = g_matWorld * g_matView * g_matProj;
 		matWVP = XMMatrixTranspose( matWVP );
+		g_InvWorld = XMMatrixInverse(&XMMatrixDeterminant(g_matWorld), g_matWorld);
+		g_InvWorld = XMMatrixTranspose(g_InvWorld);
+		g_InvWorld2 = XMMatrixInverse(&XMMatrixDeterminant(g_matWorld2), g_matWorld2);
+		g_InvWorld2 = XMMatrixTranspose(g_InvWorld2);
         // Set shader constants
         g_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&matWVP, 4 );
+		g_pd3dDevice->SetVertexShaderConstantF(4, (FLOAT*)&m_LightVecW, 1);
+		g_pd3dDevice->SetVertexShaderConstantF(5, (FLOAT*)&m_DiffuseLight, 1);
+		g_pd3dDevice->SetVertexShaderConstantF( 6, ( FLOAT* )&g_InvWorld, 4 );
 		g_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
 
 		// Setup the vertex shader inputs
 
-		matWVP = g_matWorld2 * g_matView * g_matProj;
-		matWVP = XMMatrixTranspose( matWVP );
+		XMMATRIX matWVP2 = g_matWorld2 * g_matView * g_matProj;
+		matWVP2 = XMMatrixTranspose( matWVP2 );
         // Set shader constants
-        g_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&matWVP, 4 );
+        g_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&matWVP2, 4 );
+		g_pd3dDevice->SetVertexShaderConstantF( 6, ( FLOAT* )&g_InvWorld2, 4 );
 		g_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
 
 		g_pd3dDevice->Present(NULL, NULL, NULL, NULL);
