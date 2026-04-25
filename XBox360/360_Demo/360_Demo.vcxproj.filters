@@ -9,6 +9,9 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hpp;hxx;hm;inl;inc;xsd</Extensions>
     </Filter>
+    <Filter Include="Textures">
+      <UniqueIdentifier>{55bb8f96-ec0b-4b06-b8c9-d5afa032150d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Test\stdafx.h">
@@ -22,5 +25,12 @@
     <ClCompile Include="Demo.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Textures\Rocks.tga" />
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="Release\Media\Textures\Rocks.tga" />
+    <CustomBuild Include="Media\Textures\Rocks.tga" />
   </ItemGroup>
 </Project>
