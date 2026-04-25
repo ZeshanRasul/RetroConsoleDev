@@ -79,6 +79,7 @@ D3DDevice*             g_pd3dDevice;    // Our rendering device
 
 
 XMMATRIX g_matWorld;
+XMMATRIX g_matWorld2;
 XMMATRIX g_matProj;
 XMMATRIX g_matView;
 
@@ -469,7 +470,7 @@ HRESULT Demo_360::InitApp()
 	// Projection Matrix
 	FLOAT fAspectRatio = ( FLOAT )m_d3dpp.BackBufferWidth / ( FLOAT )m_d3dpp.BackBufferHeight;
 
-    XMVECTOR m_vEye = XMVectorSet( 0.0f, 0.0f, -7.0f, 0.0f );
+    XMVECTOR m_vEye = XMVectorSet( 0.0f, 0.0f, -17.0f, 0.0f );
     XMVECTOR m_vLookAt = XMVectorSet( 0.0f, 0.0f, 0.0f, 0.0f );
     XMVECTOR m_vUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
 
@@ -477,6 +478,12 @@ HRESULT Demo_360::InitApp()
     g_matWorld = XMMatrixIdentity();
     g_matView = XMMatrixLookAtLH( m_vEye, m_vLookAt, m_vUp );
     g_matProj = XMMatrixPerspectiveFovLH( XM_PI / 4, fAspectRatio, 0.01f, 100.0f );
+
+	g_matWorld2 = XMMatrixIdentity();
+	XMMATRIX Translation = XMMatrixTranslation(0, -10, 0);
+	g_matWorld2 = g_matWorld2 * Translation;
+	XMMATRIX Scaling = XMMatrixScaling(20.0f, 1.0f, 20.0f);
+	g_matWorld2 = g_matWorld2 * Scaling;
 
 	return S_OK;
 }
@@ -552,6 +559,15 @@ HRESULT Demo_360::Render()
         // Set shader constants
         g_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&matWVP, 4 );
 		g_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
+
+		// Setup the vertex shader inputs
+
+		matWVP = g_matWorld2 * g_matView * g_matProj;
+		matWVP = XMMatrixTranspose( matWVP );
+        // Set shader constants
+        g_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&matWVP, 4 );
+		g_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
+
 		g_pd3dDevice->Present(NULL, NULL, NULL, NULL);
 
 		return S_OK;
