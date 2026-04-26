@@ -18,7 +18,32 @@
 
 #include <d3d9.h>
 
+const CHAR* g_strShadowVS =
+    "float4x4 gWorldLightViewProj : register(c0); "
+    "struct VS_IN { float3 Pos : POSITION0; };     "
+    "struct VS_OUT                                "
+    "{                                            "
+    "    float4 Pos : POSITION0;                  "
+    "    float Depth : TEXCOORD0;                 "
+    "};                                           "
+    "VS_OUT main(VS_IN In)                        "
+    "{                                            "
+    "    VS_OUT Out;                              "
+    "    Out.Pos = mul(float4(In.Pos, 1.0f), gWorldLightViewProj); "
+    "    Out.Depth = Out.Pos.z / Out.Pos.w;       "
+    "    return Out;                              "
+    "}                                            ";
 
+const CHAR* g_strShadowPS =
+    "struct PS_IN                                 "
+    "{                                            "
+    "    float4 Pos : POSITION0;                  "
+    "    float Depth : TEXCOORD0;                 "
+    "};                                           "
+    "float4 main(PS_IN In) : COLOR                "
+    "{                                            "
+    "    return float4(In.Depth, In.Depth, In.Depth, 1.0f); "
+    "}                                            ";
 //--------------------------------------------------------------------------------------
 // Vertex shader
 //--------------------------------------------------------------------------------------
@@ -26,7 +51,7 @@ const CHAR* g_strVertexShaderProgram =
     "float4x4 matWVP       : register(c0);      "
     "float4x4 g_InvWorld   : register(c6);      "
     "float4x4 gWorld       : register(c14);     "
-
+	"float4x4 gWorldLightViewProj : register(c22);"
     "struct VS_IN                              "
     "{                                         "
     "    float3 ObjPos : POSITION0;            "
@@ -42,6 +67,7 @@ const CHAR* g_strVertexShaderProgram =
     "    float3 PosW    : TEXCOORD1;           "
     "    float3 NormalW : TEXCOORD2;           "
 	"	 float3 TangentW :TEXCOORD3;           "
+	"	 float4 ShadowPos : TEXCOORD4;"
     "};                                        "
 
     "VS_OUT main(VS_IN In)                     "
@@ -52,6 +78,7 @@ const CHAR* g_strVertexShaderProgram =
     "    Out.NormalW = normalize(mul(float4(In.Norm, 0.0f), g_InvWorld).xyz); "
 	"    Out.TangentW = normalize(mul(float4(In.Tangent, 0.0f), gWorld).xyz);"
     "    Out.UV = In.UV;                       "
+	"    Out.ShadowPos = mul(float4(In.ObjPos, 1.0f), gWorldLightViewProj);"
     "    return Out;                           "
     "}                                         ";
 
@@ -61,7 +88,8 @@ const CHAR* g_strVertexShaderProgram =
 //--------------------------------------------------------------------------------------
 const CHAR* g_strPixelShaderProgram =
     "sampler2D ColorTexture : register(s0);     "
-	"sampler2D NormalTexture : register(s1);"
+	"sampler2D NormalTexture : register(s1);	"
+	"sampler2D ShadowMap : register(s2);		"
     "float4 gLightVecW      : register(c4);     "
     "float4 gDiffuseLight   : register(c5);     "
     "float4 gSpecularMtrl   : register(c10);    "
@@ -77,6 +105,7 @@ const CHAR* g_strPixelShaderProgram =
     "    float3 PosW    : TEXCOORD1;           "
     "    float3 NormalW : TEXCOORD2;           "
 	"    float3 TangentW : TEXCOORD3;"
+	"float4 ShadowPos : TEXCOORD4;"
     "};                                        "
 
     "float4 main(PS_IN In) : COLOR             "
@@ -111,8 +140,19 @@ const CHAR* g_strPixelShaderProgram =
     "    float specAmount = pow(max(dot(N, H), 0.0f), gSpecularPower.r); "
     "    specAmount *= ndotl;                   "
     "    float3 specular = specAmount * gSpecularMtrl.rgb * gSpecularLight.rgb; "
-
-    "    float3 finalCol = ambient + diffuse + specular; "
+	"float3 shadowProj = In.ShadowPos.xyz / In.ShadowPos.w; "
+	"float2 shadowUV;"
+	"shadowUV.x = shadowProj.x * 0.5f + 0.5f;"
+	"shadowUV.y = -shadowProj.y * 0.5f + 0.5f;"
+	"float currentDepth = shadowProj.z;"
+	"float shadowDepth = tex2D(ShadowMap, shadowUV).r;"
+	"float bias = 0.005f;"
+	"float shadow = 1.0f;"
+	"if (currentDepth - bias > shadowDepth)"
+	"{"
+		"shadow = 0.35f;"
+	"}"
+	"    float3 finalCol = ambient + shadow * (diffuse + specular); "
     "    finalCol = saturate(finalCol);          "
 
     "    return float4(finalCol, 1.0f);          "
@@ -134,6 +174,7 @@ XMMATRIX g_MatWVP;
 XMMATRIX g_MatWVP2;
 
 BOOL g_bWidescreen = TRUE;
+const int SHADOW_SIZE = 256;
 
 struct TimeInfo
 {    
@@ -267,11 +308,11 @@ class Demo_360 : public ATG::Application
 public:
     virtual HRESULT Initialize();
 	virtual HRESULT InitScene();
-	virtual HRESULT InitApp();
     virtual HRESULT Update();
     virtual HRESULT Render();
 
 	void BuildViewMatrix();
+	void RenderShadowMap();
 
 	// Vertex buffers
 	LPDIRECT3DVERTEXBUFFER9 m_pInnerBoxVB;
@@ -280,6 +321,8 @@ public:
 	// Shaders
 	LPDIRECT3DVERTEXSHADER9 m_pBoxVS;
 	LPDIRECT3DPIXELSHADER9 m_pBoxPS;
+	LPDIRECT3DVERTEXSHADER9 m_pShadowVS;
+	LPDIRECT3DPIXELSHADER9 m_pShadowPS;
 
 	IDirect3DTexture9* m_Texture;
 	IDirect3DTexture9* m_Texture1;
@@ -308,6 +351,22 @@ public:
 	float m_CameraHeight;
 
 	XMFLOAT4 m_vEye;
+
+	LPDIRECT3DTEXTURE9        m_pShadowMap;
+	LPDIRECT3DSURFACE9        m_pShadowSurface;
+	LPDIRECT3DSURFACE9        m_pOldDepthSurface;
+	LPDIRECT3DSURFACE9        m_pOldRenderTarget;
+
+	XMVECTOR lightDir;
+					 ;
+	XMVECTOR lightPos;
+	XMVECTOR target;
+	XMVECTOR up;
+
+	XMMATRIX lightView;
+	XMMATRIX lightProj;
+
+	XMMATRIX lightViewProj;
 };
 
 void _cdecl main()
@@ -412,6 +471,42 @@ HRESULT Demo_360::Initialize()
     pShaderCode->Release();
     pShaderCode = NULL;
 
+		 // Compile vertex shader
+   hr = D3DXCompileShader( g_strShadowVS, ( UINT )strlen( g_strShadowVS  ),
+                                    NULL, NULL, "main", "vs_2_0", 0,
+                                    &pShaderCode, &pErrorMsg, NULL );
+    if( FAILED( hr ) )
+    {
+        OutputDebugStringA( pErrorMsg ? ( CHAR* )pErrorMsg->GetBufferPointer() : "" );
+        exit( 1 );
+    }
+
+    // Create vertex shader
+  
+    m_pd3dDevice->CreateVertexShader( ( DWORD* )pShaderCode->GetBufferPointer(),
+                                      &m_pShadowVS );
+
+    // Shader code is no longer required
+    pShaderCode->Release();
+    pShaderCode = NULL;
+
+	hr = D3DXCompileShader( g_strShadowPS , ( UINT )strlen( g_strShadowPS  ),
+                            NULL, NULL, "main", "ps_2_0", 0,
+                            &pShaderCode, &pErrorMsg, NULL );
+    if( FAILED( hr ) )
+    {
+        OutputDebugStringA( pErrorMsg ? ( CHAR* )pErrorMsg->GetBufferPointer() : "" );
+        exit( 1 );
+    }
+
+
+    m_pd3dDevice->CreatePixelShader( ( DWORD* )pShaderCode->GetBufferPointer(),
+                                     &m_pShadowPS );
+
+    // Shader code no longer required
+    pShaderCode->Release();
+    pShaderCode = NULL;
+
     // Load texture
 
     // D3DXCreateTextureFromFile loads a texture and can optionally resize it,
@@ -451,12 +546,6 @@ HRESULT Demo_360::Initialize()
 		DebugBreak();
 
 	}
-    // Make texture format sRGB, since the source image is encoded in sRGB space.
-    // Note: this is not the best quality way of doing this - see the ATG::ConvertTextureToGoodSRGB 
-    // function in the ATG framework for the full high-quality method.
-    m_Texture1->Format.SignX = GPUSIGN_GAMMA;
-    m_Texture1->Format.SignY = GPUSIGN_GAMMA;
-    m_Texture1->Format.SignZ = GPUSIGN_GAMMA;
 
 	    // Load texture
 
@@ -497,12 +586,7 @@ HRESULT Demo_360::Initialize()
 		DebugBreak();
 
 	}
-    // Make texture format sRGB, since the source image is encoded in sRGB space.
-    // Note: this is not the best quality way of doing this - see the ATG::ConvertTextureToGoodSRGB 
-    // function in the ATG framework for the full high-quality method.
-    m_Texture3->Format.SignX = GPUSIGN_GAMMA;
-    m_Texture3->Format.SignY = GPUSIGN_GAMMA;
-    m_Texture3->Format.SignZ = GPUSIGN_GAMMA;
+
 
 
 
@@ -529,6 +613,7 @@ HRESULT Demo_360::Initialize()
         pVertices[i].Normal = g_BoxVertices[i].Normal;
 
 		pVertices[i].UV = g_BoxVertices[i].UV;
+		pVertices[i].Tangent = g_BoxVertices[i].Tangent;
     }
 
     m_pInnerBoxVB->Unlock();
@@ -577,6 +662,50 @@ HRESULT Demo_360::Initialize()
 	m_DiffuseLight = XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f);
 	m_SpecularLight = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 
+	lightDir = XMVector3Normalize(XMLoadFloat4(&m_LightVecW));
+
+	lightPos = -lightDir * 10.0f;
+	target   = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
+	up       = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+
+	lightView = XMMatrixLookAtLH(lightPos, target, up);
+	lightProj = XMMatrixOrthographicLH(12.0f, 12.0f, 1.0f, 40.0f);
+
+	lightViewProj = lightView * lightProj;
+
+	hr = S_OK;
+
+	hr = m_pd3dDevice->CreateTexture(
+		SHADOW_SIZE,
+		SHADOW_SIZE,
+		1,
+		0,
+		D3DFMT_R32F,
+		D3DPOOL_DEFAULT,
+		&m_pShadowMap,
+		NULL);
+
+	if (FAILED(hr))
+	{
+		OutputDebugStringA("Create shadow texture failed\n");
+		DebugBreak();
+	}
+
+	hr = m_pd3dDevice->CreateRenderTarget(
+		SHADOW_SIZE,
+		SHADOW_SIZE,
+		D3DFMT_R32F,
+		D3DMULTISAMPLE_NONE,
+		0,
+		0,
+		&m_pShadowSurface,
+		NULL);
+
+	if (FAILED(hr))
+	{
+		OutputDebugStringA("Create shadow render target failed\n");
+		DebugBreak();
+	}
 	return S_OK;
 }
 
@@ -584,150 +713,6 @@ HRESULT Demo_360::InitScene()
 {
 
     return S_OK;
-}
-
-HRESULT Demo_360::InitApp()
-{
-    m_AppState = APPSTATE_CONTROLTEST;
-    m_fDeadZone = 0.24f;  // Set default deadzone to 24%
-    m_fLeftMotorSpeed = 0.0f;
-    m_fRightMotorSpeed = 0.0f;
-
-    // Quantized control values
-    m_pQuantizedThumbStickValues = new BYTE[256];
-    ZeroMemory( m_pQuantizedThumbStickValues, 256 );
-
-    m_pQuantizedButtonValues = new BYTE[256];
-    ZeroMemory( m_pQuantizedButtonValues, 256 );
-
-	HRESULT hr;
-	//
-	//    // Create the box vertex shader
- //   if( hr = ATG::LoadVertexShader( "game:\\Shaders\\FloatDepthVS.xvu", &m_pBoxVS ) ) 
- //   {
- //       ATG_PrintError( "Couldn't create FloatDepthVS.xvu\n" );
- //   }
-
- //   // Create the box pixel shader
- //   if( hr = ATG::LoadPixelShader( "game:\\Shaders\\FloatDepthPS.xpu", &m_pBoxPS ) ) 
- //   {
- //       ATG_PrintError( "Couldn't create FloatDepthPS.xpu\n" );
- //   }
-
-
-// Structure to hold vertex data
-
-	ID3DXBuffer* pShaderCode = NULL;
-    ID3DXBuffer* pErrorMsg = NULL;
-
-	 // Compile vertex shader
-   hr = D3DXCompileShader( g_strVertexShaderProgram, ( UINT )strlen( g_strVertexShaderProgram ),
-                                    NULL, NULL, "main", "vs_2_0", 0,
-                                    &pShaderCode, &pErrorMsg, NULL );
-    if( FAILED( hr ) )
-    {
-        OutputDebugStringA( pErrorMsg ? ( CHAR* )pErrorMsg->GetBufferPointer() : "" );
-        exit( 1 );
-    }
-
-    // Create vertex shader
-  
-    m_pd3dDevice->CreateVertexShader( ( DWORD* )pShaderCode->GetBufferPointer(),
-                                      &m_pBoxVS );
-
-    // Shader code is no longer required
-    pShaderCode->Release();
-    pShaderCode = NULL;
-
-    // Compile pixel shader
-    hr = D3DXCompileShader( g_strPixelShaderProgram, ( UINT )strlen( g_strPixelShaderProgram ),
-                            NULL, NULL, "main", "ps_2_0", 0,
-                            &pShaderCode, &pErrorMsg, NULL );
-    if( FAILED( hr ) )
-    {
-        OutputDebugStringA( pErrorMsg ? ( CHAR* )pErrorMsg->GetBufferPointer() : "" );
-        exit( 1 );
-    }
-
-
-    m_pd3dDevice->CreatePixelShader( ( DWORD* )pShaderCode->GetBufferPointer(),
-                                     &m_pBoxPS );
-
-    // Shader code no longer required
-    pShaderCode->Release();
-    pShaderCode = NULL;
-
-// Create and initialize vertex buffers
-     m_pd3dDevice->CreateVertexBuffer( sizeof( g_BoxVertices ),
-                                                  D3DUSAGE_WRITEONLY,
-                                                  NULL,
-                                                  D3DPOOL_DEFAULT,
-                                                  &m_pInnerBoxVB,
-                                                  NULL ) ;
-
-    // Put the data for the patches into our vertex buffer.
-    BOXVERTEX* pVertices;
-
-
-    m_pInnerBoxVB->Lock( 0, 0, ( VOID** )&pVertices, 0 );
-    for( UINT i = 0; i < 4 * 6; i++ )
-    {
-        // Scale position
-        XMVECTOR Position = XMLoadFloat3( &g_BoxVertices[i].Position );
-        Position = Position;
-        XMStoreVector3( &pVertices[i].Position, Position );
-
-        pVertices[i].Normal = g_BoxVertices[i].Normal;
-
-		pVertices[i].UV = g_BoxVertices[i].UV;
-    }
-
-    m_pInnerBoxVB->Unlock();
-
-    // Define the vertex elements
-    static const D3DVERTEXELEMENT9 VertexElements[4] =
-    {
-        { 0,  0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
-        { 0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0 },
-		 { 0, 24, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
-        D3DDECL_END()
-    };
-
-    m_pd3dDevice->CreateVertexDeclaration( VertexElements, &m_VertexDecl );
-
-	g_matWorld = XMMatrixIdentity();
-
-	// Projection Matrix
-	FLOAT fAspectRatio = ( FLOAT )m_d3dpp.BackBufferWidth / ( FLOAT )m_d3dpp.BackBufferHeight;
-
-    m_vEye = XMFLOAT4( 0.0f, 3.0f, -27.0f, 0.0f );
-    XMVECTOR m_vLookAt = XMVectorSet( 0.0f, 0.0f, 0.0f, 0.0f );
-    XMVECTOR m_vUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
-
-    // Set the transform matrices
-    g_matWorld = XMMatrixIdentity();
-    g_matView = XMMatrixLookAtLH( XMVectorSet(m_vEye.x, m_vEye.y, m_vEye.z, m_vEye.w), m_vLookAt, m_vUp );
-    g_matProj = XMMatrixPerspectiveFovLH( XM_PI / 4, fAspectRatio, 0.01f, 100.0f );
-
-	g_matWorld2 = XMMatrixIdentity();
-	XMMATRIX Translation = XMMatrixTranslation(0.0f, -7.0f, 0.0f);
-	g_matWorld2 = g_matWorld2 * Translation;
-	XMMATRIX Scaling = XMMatrixScaling(20.0f, 1.0f, 20.0f);
-	g_matWorld2 = g_matWorld2 * Scaling;
-
-	m_DiffuseMtrl = XMFLOAT4(0.7f, 0.6f, 0.5f, 1.0f);
-	m_SpecularMtrl  = XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f);
-	m_SpecularPower = XMFLOAT4(16.0f, 16.0f, 16.0f, 16.0f);
-
-	m_DiffuseMtrl2  = XMFLOAT4(0.35f, 0.55f, 0.35f, 1.0f);
-	m_SpecularMtrl2 = XMFLOAT4(0.05f, 0.05f, 0.05f, 1.0f);
-	m_SpecularPower2 = XMFLOAT4(4.0f, 4.0f, 4.0f, 4.0f);
-
-	m_LightVecW = XMFLOAT4(-0.5f, 0.75f, -2.0f, 0.0f);
-	m_DiffuseLight = XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f);
-	m_SpecularLight = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-
-	return S_OK;
 }
 
 HRESULT Demo_360::Update()
@@ -782,6 +767,22 @@ HRESULT Demo_360::Update()
 
 HRESULT Demo_360::Render()
 {
+		RenderShadowMap();
+		m_pd3dDevice->Resolve(
+		0,
+		NULL,
+		m_pShadowMap,
+		NULL,
+		0,
+		0,
+		NULL,
+		0.0f,
+		0,
+		NULL);
+		LPDIRECT3DSURFACE9 backBuffer = NULL;
+		m_pd3dDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
+		m_pd3dDevice->SetRenderTarget(0, backBuffer);
+		backBuffer->Release();
 		m_pd3dDevice->Clear(0L, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER|D3DCLEAR_STENCIL, D3DCOLOR_XRGB(0,0,255), 1.0f, 0L);
 
 		m_pd3dDevice->SetRenderState( D3DRS_ZENABLE, D3DZB_TRUE );
@@ -807,9 +808,16 @@ HRESULT Demo_360::Render()
 		m_pd3dDevice->SetSamplerState(1, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
 		m_pd3dDevice->SetSamplerState(1, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
 
+		m_pd3dDevice->SetSamplerState(2, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+		m_pd3dDevice->SetSamplerState(2, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+		m_pd3dDevice->SetSamplerState(2, D3DSAMP_MINFILTER, D3DTEXF_POINT);
+		m_pd3dDevice->SetSamplerState(2, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
+
 		// Set texture 0
 		m_pd3dDevice->SetTexture( 0, m_Texture );
 		m_pd3dDevice->SetTexture( 1, m_Texture1 );
+		m_pd3dDevice->SetTexture( 2, m_pShadowMap );
+
         // Draw Box
         m_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&g_MatWVP, 4 );
 		m_pd3dDevice->SetPixelShaderConstantF(4, (FLOAT*)&m_LightVecW, 1);
@@ -821,11 +829,13 @@ HRESULT Demo_360::Render()
 		m_pd3dDevice->SetPixelShaderConstantF(13, (FLOAT*)&m_vEye, 1);
 		m_pd3dDevice->SetVertexShaderConstantF(14, (FLOAT*)&g_matWorld, 4);
 		m_pd3dDevice->SetPixelShaderConstantF(18, (FLOAT*)&m_DiffuseMtrl, 1);
+		m_pd3dDevice->SetVertexShaderConstantF(22, (FLOAT*)&lightViewProj, 4);
 		m_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
 
 		// Set texture 2
 		m_pd3dDevice->SetTexture( 0, m_Texture2 );
 		m_pd3dDevice->SetTexture( 1, m_Texture3 );
+		m_pd3dDevice->SetTexture( 2, m_pShadowMap );
         // Draw Ground Box
         m_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&g_MatWVP2, 4 );
 		m_pd3dDevice->SetVertexShaderConstantF( 6, ( FLOAT* )&g_InvWorld2, 4 );
@@ -833,6 +843,7 @@ HRESULT Demo_360::Render()
 		m_pd3dDevice->SetPixelShaderConstantF( 12, ( FLOAT* )&m_SpecularPower2, 1 );
 		m_pd3dDevice->SetVertexShaderConstantF(14, (FLOAT*)&g_matWorld2, 4);
 		m_pd3dDevice->SetPixelShaderConstantF(18, (FLOAT*)&m_DiffuseMtrl2, 1);
+		m_pd3dDevice->SetVertexShaderConstantF(22, (FLOAT*)&lightViewProj, 4);
 		m_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
 
 		// Output title and framerate
@@ -890,4 +901,57 @@ void Demo_360::BuildViewMatrix()
     g_matView = XMMatrixLookAtLH( m_vEye, m_vLookAt, m_vUp );
 
 	g_matProj = XMMatrixPerspectiveFovLH( XM_PI / 4, fAspectRatio, 0.01f, 5000.0f );
+}
+
+void Demo_360::RenderShadowMap()
+{
+	D3DVIEWPORT9 oldViewport;
+	m_pd3dDevice->GetViewport(&oldViewport);
+
+	D3DVIEWPORT9 shadowViewport;
+	shadowViewport.X = 0;
+	shadowViewport.Y = 0;
+	shadowViewport.Width = SHADOW_SIZE;
+	shadowViewport.Height = SHADOW_SIZE;
+	shadowViewport.MinZ = 0.0f;
+	shadowViewport.MaxZ = 1.0f;
+
+	m_pd3dDevice->SetViewport(&shadowViewport);
+    m_pd3dDevice->GetRenderTarget(0, &m_pOldRenderTarget);
+
+    m_pd3dDevice->SetRenderTarget(0, m_pShadowSurface);
+
+    m_pd3dDevice->Clear(0, NULL, D3DCLEAR_TARGET, 0xffffffff, 1.0f, 0);
+
+    m_pd3dDevice->SetVertexShader(m_pShadowVS);
+    m_pd3dDevice->SetPixelShader(m_pShadowPS);
+
+    // For each object:
+	XMMATRIX cubeShadowMtx = g_matWorld * lightViewProj;
+	cubeShadowMtx = XMMatrixTranspose(cubeShadowMtx);
+	m_pd3dDevice->SetVertexShaderConstantF(22, (FLOAT*)&cubeShadowMtx, 4);
+
+    m_pd3dDevice->SetStreamSource( 0, m_pInnerBoxVB, 0, sizeof( BOXVERTEX ) );
+	
+
+	// Set the vertex declaration
+	m_pd3dDevice->SetVertexDeclaration( m_VertexDecl );
+
+	// Set texture 0
+	m_pd3dDevice->SetTexture( 0, NULL );
+	m_pd3dDevice->SetTexture( 1, NULL );
+    // Draw Box
+	m_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
+	XMMATRIX groundShadowMtx = g_matWorld2 * lightViewProj;
+	groundShadowMtx = XMMatrixTranspose(groundShadowMtx);
+	m_pd3dDevice->SetVertexShaderConstantF(22, (FLOAT*)&groundShadowMtx, 4);
+	// Set texture 2
+	m_pd3dDevice->SetTexture( 0, NULL );
+	m_pd3dDevice->SetTexture( 1, NULL );
+    // Draw Ground Box
+	m_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
+
+    m_pd3dDevice->SetRenderTarget(0, m_pOldRenderTarget);
+    m_pOldRenderTarget->Release();
+	m_pd3dDevice->SetViewport(&oldViewport);
 }

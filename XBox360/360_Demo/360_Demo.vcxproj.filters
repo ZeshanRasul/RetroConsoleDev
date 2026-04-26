@@ -34,6 +34,14 @@
     <None Include="Release\Media\Textures\cube_normal.tga" />
     <None Include="Release\Media\Textures\ground_albedo.tga" />
     <None Include="Release\Media\Textures\ground_normal.tga" />
+    <None Include="Debug\Media\Fonts\Arial_16.xpr" />
+    <None Include="Debug\Media\Textures\crate.tga" />
+    <None Include="Debug\Media\Textures\cube_albedo.tga" />
+    <None Include="Debug\Media\Textures\cube_normal.tga" />
+    <None Include="Debug\Media\Textures\grass.tga" />
+    <None Include="Debug\Media\Textures\ground_albedo.tga" />
+    <None Include="Debug\Media\Textures\ground_normal.tga" />
+    <None Include="Debug\Media\Textures\Rocks.tga" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Release\Media\Textures\Rocks.tga" />

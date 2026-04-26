@@ -85,6 +85,14 @@
     <CustomBuild Include="Media\Textures\cube_normal.tga">
       <FileType>Document</FileType>
     </CustomBuild>
+    <None Include="Debug\Media\Fonts\Arial_16.xpr" />
+    <None Include="Debug\Media\Textures\crate.tga" />
+    <None Include="Debug\Media\Textures\cube_albedo.tga" />
+    <None Include="Debug\Media\Textures\cube_normal.tga" />
+    <None Include="Debug\Media\Textures\grass.tga" />
+    <None Include="Debug\Media\Textures\ground_albedo.tga" />
+    <None Include="Debug\Media\Textures\ground_normal.tga" />
+    <None Include="Debug\Media\Textures\Rocks.tga" />
     <None Include="Media\Textures\grass.tga" />
     <CustomBuild Include="Media\Textures\ground_albedo.tga">
       <FileType>Document</FileType>
