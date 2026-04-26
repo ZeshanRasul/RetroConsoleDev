@@ -134,7 +134,7 @@ const CHAR* g_strPixelShaderProgram =
 
     "    float ndotl = max(dot(N, L), 0.0f);    "
 
-	"    float3 ambient = float3(0.03f, 0.03f, 0.03f) * texColor * gDiffuseMtrl.rgb; "
+	"    float3 ambient = float3(0.13f, 0.13f, 0.23f) * texColor * gDiffuseMtrl.rgb; "
     "    float3 diffuse = ndotl * texColor * gDiffuseMtrl.rgb * gDiffuseLight.rgb; "
 
     "    float specAmount = pow(max(dot(N, H), 0.0f), gSpecularPower.r); "
@@ -148,9 +148,16 @@ const CHAR* g_strPixelShaderProgram =
 	"float shadowDepth = tex2D(ShadowMap, shadowUV).r;"
 	"float bias = 0.005f;"
 	"float shadow = 1.0f;"
-	"if (currentDepth - bias > shadowDepth)"
+	"if (shadowUV.x >= 0.0f && shadowUV.x <= 1.0f &&"
+		"shadowUV.y >= 0.0f && shadowUV.y <= 1.0f &&"
+		"currentDepth >= 0.0f && currentDepth <= 1.0f)"
 	"{"
-		"shadow = 0.35f;"
+	 "   float shadowDepth = tex2D(ShadowMap, shadowUV).r;"
+		"float bias = 0.005f;"
+		"if (currentDepth - bias > shadowDepth)"
+		"{"
+		 "   shadow = 0.35f;"
+		"}"
 	"}"
 	"    float3 finalCol = ambient + shadow * (diffuse + specular); "
     "    finalCol = saturate(finalCol);          "
@@ -553,7 +560,7 @@ HRESULT Demo_360::Initialize()
     // filter it, generate mip levels, etc.  It is good for game prototyping
     // but is not suitable for final shipping code due to load time performance
     // reasons.
-    hr = D3DXCreateTextureFromFileEx( m_pd3dDevice, "game:\\Media\\Textures\\ground_albedo.tga",
+    hr = D3DXCreateTextureFromFileEx( m_pd3dDevice, "game:\\Media\\Textures\\grass.tga",
                                       D3DX_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT,
                                       0, D3DFMT_UNKNOWN, D3DPOOL_DEFAULT,
                                       D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL,
@@ -664,12 +671,12 @@ HRESULT Demo_360::Initialize()
 
 	lightDir = XMVector3Normalize(XMLoadFloat4(&m_LightVecW));
 
-	lightPos = -lightDir * 10.0f;
+	lightPos = lightDir * 20.0f;
 	target   = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
 	up       = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
 	lightView = XMMatrixLookAtLH(lightPos, target, up);
-	lightProj = XMMatrixOrthographicLH(12.0f, 12.0f, 1.0f, 40.0f);
+	lightProj = XMMatrixOrthographicLH(40.0f, 40.0f, 1.0f, 80.0f);
 
 	lightViewProj = lightView * lightProj;
 
@@ -765,128 +772,6 @@ HRESULT Demo_360::Update()
 	return S_OK;
 }
 
-HRESULT Demo_360::Render()
-{
-		RenderShadowMap();
-		m_pd3dDevice->Resolve(
-		0,
-		NULL,
-		m_pShadowMap,
-		NULL,
-		0,
-		0,
-		NULL,
-		0.0f,
-		0,
-		NULL);
-		LPDIRECT3DSURFACE9 backBuffer = NULL;
-		m_pd3dDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &backBuffer);
-		m_pd3dDevice->SetRenderTarget(0, backBuffer);
-		backBuffer->Release();
-		m_pd3dDevice->Clear(0L, NULL, D3DCLEAR_TARGET|D3DCLEAR_ZBUFFER|D3DCLEAR_STENCIL, D3DCOLOR_XRGB(0,0,255), 1.0f, 0L);
-
-		m_pd3dDevice->SetRenderState( D3DRS_ZENABLE, D3DZB_TRUE );
-		m_pd3dDevice->SetRenderState( D3DRS_ALPHABLENDENABLE, FALSE );
-		m_pd3dDevice->SetRenderState( D3DRS_CULLMODE, D3DCULL_NONE );
-
-		// Set shaders
-        m_pd3dDevice->SetVertexShader( m_pBoxVS );
-        m_pd3dDevice->SetPixelShader( m_pBoxPS );
-
-		m_pd3dDevice->SetStreamSource( 0, m_pInnerBoxVB, 0, sizeof( BOXVERTEX ) );
-	
-
-		// Set the vertex declaration
-		m_pd3dDevice->SetVertexDeclaration( m_VertexDecl );
-
-		// Configure sampler 0 for trilinear sampling
-		m_pd3dDevice->SetSamplerState( 0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR );
-		m_pd3dDevice->SetSamplerState( 0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR );
-		m_pd3dDevice->SetSamplerState( 0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR );
-
-		m_pd3dDevice->SetSamplerState(1, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
-		m_pd3dDevice->SetSamplerState(1, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
-		m_pd3dDevice->SetSamplerState(1, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
-
-		m_pd3dDevice->SetSamplerState(2, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
-		m_pd3dDevice->SetSamplerState(2, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
-		m_pd3dDevice->SetSamplerState(2, D3DSAMP_MINFILTER, D3DTEXF_POINT);
-		m_pd3dDevice->SetSamplerState(2, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
-
-		// Set texture 0
-		m_pd3dDevice->SetTexture( 0, m_Texture );
-		m_pd3dDevice->SetTexture( 1, m_Texture1 );
-		m_pd3dDevice->SetTexture( 2, m_pShadowMap );
-
-        // Draw Box
-        m_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&g_MatWVP, 4 );
-		m_pd3dDevice->SetPixelShaderConstantF(4, (FLOAT*)&m_LightVecW, 1);
-		m_pd3dDevice->SetPixelShaderConstantF(5, (FLOAT*)&m_DiffuseLight, 1);
-		m_pd3dDevice->SetVertexShaderConstantF( 6, ( FLOAT* )&g_InvWorld, 4 );
-		m_pd3dDevice->SetPixelShaderConstantF( 10, ( FLOAT* )&m_SpecularMtrl, 1 );
-		m_pd3dDevice->SetPixelShaderConstantF( 11, ( FLOAT* )&m_SpecularLight, 1 );
-		m_pd3dDevice->SetPixelShaderConstantF( 12, ( FLOAT* )&m_SpecularPower, 1 );
-		m_pd3dDevice->SetPixelShaderConstantF(13, (FLOAT*)&m_vEye, 1);
-		m_pd3dDevice->SetVertexShaderConstantF(14, (FLOAT*)&g_matWorld, 4);
-		m_pd3dDevice->SetPixelShaderConstantF(18, (FLOAT*)&m_DiffuseMtrl, 1);
-		m_pd3dDevice->SetVertexShaderConstantF(22, (FLOAT*)&lightViewProj, 4);
-		m_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
-
-		// Set texture 2
-		m_pd3dDevice->SetTexture( 0, m_Texture2 );
-		m_pd3dDevice->SetTexture( 1, m_Texture3 );
-		m_pd3dDevice->SetTexture( 2, m_pShadowMap );
-        // Draw Ground Box
-        m_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&g_MatWVP2, 4 );
-		m_pd3dDevice->SetVertexShaderConstantF( 6, ( FLOAT* )&g_InvWorld2, 4 );
-		m_pd3dDevice->SetPixelShaderConstantF( 10, ( FLOAT* )&m_SpecularMtrl2, 1 );
-		m_pd3dDevice->SetPixelShaderConstantF( 12, ( FLOAT* )&m_SpecularPower2, 1 );
-		m_pd3dDevice->SetVertexShaderConstantF(14, (FLOAT*)&g_matWorld2, 4);
-		m_pd3dDevice->SetPixelShaderConstantF(18, (FLOAT*)&m_DiffuseMtrl2, 1);
-		m_pd3dDevice->SetVertexShaderConstantF(22, (FLOAT*)&lightViewProj, 4);
-		m_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
-
-		// Output title and framerate
-		m_Timer.MarkFrame();
-
-		{
-			m_Font.Begin();
-			m_Font.SetScaleFactors( 1.2f, 1.2f );
-			m_Font.DrawText( 0, 0, 0xffffffff, L"XBOX360 Demo" );
-			m_Font.SetScaleFactors( 1.0f, 1.0f );
-			m_Font.DrawText( 0, 0, 0xffffff00, m_Timer.GetFrameRate(), ATGFONT_RIGHT );
-
-			float fps = (float)_wtof(m_Timer.GetFrameRate());
-			float frameTimeMs = 1000.0f / fps;
-			WCHAR buffer[64];
-			swprintf_s(buffer, L"Frame Time: %.2f ms", frameTimeMs);
-			m_Font.DrawText(0, 20, 0xffffff00, buffer, ATGFONT_RIGHT);
-
-			// Display the total time the app has been running
-			DOUBLE fAppTimeInSeconds = m_Timer.GetAppTime();
-			DOUBLE fAppTimeInMinutes = fAppTimeInSeconds / 60.0;
-			DOUBLE fAppTimeInHours = fAppTimeInMinutes / 60.0;
-			DOUBLE fAppTimeInDays = fAppTimeInHours / 24.0;
-
-			DWORD dwSeconds = ( DWORD )( floor( fAppTimeInSeconds ) ) % 60;
-			DWORD dwMinutes = ( DWORD )( floor( fAppTimeInMinutes ) ) % 60;
-			DWORD dwHours = ( DWORD )( floor( fAppTimeInHours ) ) % 24;
-			DWORD dwDays = ( DWORD )( floor( fAppTimeInDays ) );
-
-			WCHAR strTime[80];
-			swprintf_s( strTime, L"%02ldd%02ldh%02ldm%02lds",
-						dwDays, dwHours, dwMinutes, dwSeconds );
-			m_Font.DrawText( 0, 40, 0xffffff00, strTime, ATGFONT_RIGHT );
-
-			m_Font.End();
-		}
-
-		
-		m_pd3dDevice->Present(NULL, NULL, NULL, NULL);
-
-		return S_OK;
-}
-
 void Demo_360::BuildViewMatrix()
 {
 	float x = m_CameraRadius * cosf(m_CameraRotationY);
@@ -894,64 +779,212 @@ void Demo_360::BuildViewMatrix()
 
 	FLOAT fAspectRatio = ( FLOAT )m_d3dpp.BackBufferWidth / ( FLOAT )m_d3dpp.BackBufferHeight;
 
-    XMVECTOR m_vEye = XMVectorSet( x, m_CameraHeight, z, 0.0f );
+    XMVECTOR eye = XMVectorSet(x, m_CameraHeight, z, 1.0f);
+	XMStoreFloat4(&m_vEye, eye);
+
+	
     XMVECTOR m_vLookAt = XMVectorSet( 0.0f, 0.0f, 0.0f, 0.0f );
     XMVECTOR m_vUp = XMVectorSet( 0.0f, 1.0f, 0.0f, 0.0f );
 
-    g_matView = XMMatrixLookAtLH( m_vEye, m_vLookAt, m_vUp );
+    g_matView = XMMatrixLookAtLH(eye, m_vLookAt, m_vUp);
 
 	g_matProj = XMMatrixPerspectiveFovLH( XM_PI / 4, fAspectRatio, 0.01f, 5000.0f );
 }
 
-void Demo_360::RenderShadowMap()
+HRESULT Demo_360::Render()
 {
-	D3DVIEWPORT9 oldViewport;
-	m_pd3dDevice->GetViewport(&oldViewport);
+    // ------------------------------------------------------------
+    // PASS 1: Render shadow map
+    // ------------------------------------------------------------
+    D3DVIEWPORT9 oldViewport;
+    m_pd3dDevice->GetViewport(&oldViewport);
 
-	D3DVIEWPORT9 shadowViewport;
-	shadowViewport.X = 0;
-	shadowViewport.Y = 0;
-	shadowViewport.Width = SHADOW_SIZE;
-	shadowViewport.Height = SHADOW_SIZE;
-	shadowViewport.MinZ = 0.0f;
-	shadowViewport.MaxZ = 1.0f;
+    LPDIRECT3DSURFACE9 oldRenderTarget = NULL;
+    m_pd3dDevice->GetRenderTarget(0, &oldRenderTarget);
 
-	m_pd3dDevice->SetViewport(&shadowViewport);
-    m_pd3dDevice->GetRenderTarget(0, &m_pOldRenderTarget);
+    D3DVIEWPORT9 shadowViewport;
+    shadowViewport.X = 0;
+    shadowViewport.Y = 0;
+    shadowViewport.Width = SHADOW_SIZE;
+    shadowViewport.Height = SHADOW_SIZE;
+    shadowViewport.MinZ = 0.0f;
+    shadowViewport.MaxZ = 1.0f;
 
     m_pd3dDevice->SetRenderTarget(0, m_pShadowSurface);
+    m_pd3dDevice->SetViewport(&shadowViewport);
 
-    m_pd3dDevice->Clear(0, NULL, D3DCLEAR_TARGET, 0xffffffff, 1.0f, 0);
+    m_pd3dDevice->Clear(
+        0,
+        NULL,
+        D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER,
+        0xffffffff,
+        1.0f,
+        0);
+
+    m_pd3dDevice->SetRenderState(D3DRS_ZENABLE, D3DZB_TRUE);
+    m_pd3dDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 
     m_pd3dDevice->SetVertexShader(m_pShadowVS);
     m_pd3dDevice->SetPixelShader(m_pShadowPS);
+    m_pd3dDevice->SetStreamSource(0, m_pInnerBoxVB, 0, sizeof(BOXVERTEX));
+    m_pd3dDevice->SetVertexDeclaration(m_VertexDecl);
 
-    // For each object:
-	XMMATRIX cubeShadowMtx = g_matWorld * lightViewProj;
-	cubeShadowMtx = XMMatrixTranspose(cubeShadowMtx);
-	m_pd3dDevice->SetVertexShaderConstantF(22, (FLOAT*)&cubeShadowMtx, 4);
+    m_pd3dDevice->SetTexture(0, NULL);
+    m_pd3dDevice->SetTexture(1, NULL);
+    m_pd3dDevice->SetTexture(2, NULL);
 
-    m_pd3dDevice->SetStreamSource( 0, m_pInnerBoxVB, 0, sizeof( BOXVERTEX ) );
-	
+    // Shadow pass: cube
+    {
+        XMMATRIX cubeShadowMtx = g_matWorld * lightViewProj;
+        cubeShadowMtx = XMMatrixTranspose(cubeShadowMtx);
 
-	// Set the vertex declaration
-	m_pd3dDevice->SetVertexDeclaration( m_VertexDecl );
+        // IMPORTANT: shadow VS expects c0
+        m_pd3dDevice->SetVertexShaderConstantF(0, (FLOAT*)&cubeShadowMtx, 4);
 
-	// Set texture 0
-	m_pd3dDevice->SetTexture( 0, NULL );
-	m_pd3dDevice->SetTexture( 1, NULL );
-    // Draw Box
-	m_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
-	XMMATRIX groundShadowMtx = g_matWorld2 * lightViewProj;
-	groundShadowMtx = XMMatrixTranspose(groundShadowMtx);
-	m_pd3dDevice->SetVertexShaderConstantF(22, (FLOAT*)&groundShadowMtx, 4);
-	// Set texture 2
-	m_pd3dDevice->SetTexture( 0, NULL );
-	m_pd3dDevice->SetTexture( 1, NULL );
-    // Draw Ground Box
-	m_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
+        m_pd3dDevice->DrawPrimitive(D3DPT_QUADLIST, 0, 6);
+    }
 
-    m_pd3dDevice->SetRenderTarget(0, m_pOldRenderTarget);
-    m_pOldRenderTarget->Release();
-	m_pd3dDevice->SetViewport(&oldViewport);
+    // Shadow pass: ground
+    {
+        XMMATRIX groundShadowMtx = g_matWorld2 * lightViewProj;
+        groundShadowMtx = XMMatrixTranspose(groundShadowMtx);
+
+        // IMPORTANT: shadow VS expects c0
+        m_pd3dDevice->SetVertexShaderConstantF(0, (FLOAT*)&groundShadowMtx, 4);
+
+        m_pd3dDevice->DrawPrimitive(D3DPT_QUADLIST, 0, 6);
+    }
+
+    // Resolve shadow render target to texture while shadow RT is active
+    m_pd3dDevice->Resolve(
+        0,
+        NULL,
+        m_pShadowMap,
+        NULL,
+        0,
+        0,
+        NULL,
+        0.0f,
+        0,
+        NULL);
+
+    // Restore backbuffer
+    m_pd3dDevice->SetRenderTarget(0, oldRenderTarget);
+    m_pd3dDevice->SetViewport(&oldViewport);
+
+    if (oldRenderTarget)
+        oldRenderTarget->Release();
+
+    // ------------------------------------------------------------
+    // PASS 2: Main scene render
+    // ------------------------------------------------------------
+    m_pd3dDevice->Clear(
+        0L,
+        NULL,
+        D3DCLEAR_TARGET | D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL,
+        D3DCOLOR_XRGB(0, 0, 255),
+        1.0f,
+        0L);
+
+    m_pd3dDevice->SetRenderState(D3DRS_ZENABLE, D3DZB_TRUE);
+    m_pd3dDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+    m_pd3dDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+
+    m_pd3dDevice->SetVertexShader(m_pBoxVS);
+    m_pd3dDevice->SetPixelShader(m_pBoxPS);
+
+    m_pd3dDevice->SetStreamSource(0, m_pInnerBoxVB, 0, sizeof(BOXVERTEX));
+    m_pd3dDevice->SetVertexDeclaration(m_VertexDecl);
+
+    m_pd3dDevice->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
+    m_pd3dDevice->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+    m_pd3dDevice->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+
+    m_pd3dDevice->SetSamplerState(1, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
+    m_pd3dDevice->SetSamplerState(1, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+    m_pd3dDevice->SetSamplerState(1, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+
+    m_pd3dDevice->SetSamplerState(2, D3DSAMP_ADDRESSU, D3DTADDRESS_CLAMP);
+    m_pd3dDevice->SetSamplerState(2, D3DSAMP_ADDRESSV, D3DTADDRESS_CLAMP);
+    m_pd3dDevice->SetSamplerState(2, D3DSAMP_MINFILTER, D3DTEXF_POINT);
+    m_pd3dDevice->SetSamplerState(2, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
+
+    // Shared pixel shader constants
+    m_pd3dDevice->SetPixelShaderConstantF(4,  (FLOAT*)&m_LightVecW, 1);
+    m_pd3dDevice->SetPixelShaderConstantF(5,  (FLOAT*)&m_DiffuseLight, 1);
+    m_pd3dDevice->SetPixelShaderConstantF(11, (FLOAT*)&m_SpecularLight, 1);
+    m_pd3dDevice->SetPixelShaderConstantF(13, (FLOAT*)&m_vEye, 1);
+
+    // ------------------------------------------------------------
+    // Draw cube
+    // ------------------------------------------------------------
+    {
+        XMMATRIX cubeShadowMtx = g_matWorld * lightViewProj;
+        cubeShadowMtx = XMMatrixTranspose(cubeShadowMtx);
+
+        m_pd3dDevice->SetTexture(0, m_Texture);
+        m_pd3dDevice->SetTexture(1, m_Texture1);
+        m_pd3dDevice->SetTexture(2, m_pShadowMap);
+
+        m_pd3dDevice->SetVertexShaderConstantF(0,  (FLOAT*)&g_MatWVP, 4);
+        m_pd3dDevice->SetVertexShaderConstantF(6,  (FLOAT*)&g_InvWorld, 4);
+        m_pd3dDevice->SetVertexShaderConstantF(14, (FLOAT*)&g_matWorld, 4);
+        m_pd3dDevice->SetVertexShaderConstantF(22, (FLOAT*)&cubeShadowMtx, 4);
+
+        m_pd3dDevice->SetPixelShaderConstantF(10, (FLOAT*)&m_SpecularMtrl, 1);
+        m_pd3dDevice->SetPixelShaderConstantF(12, (FLOAT*)&m_SpecularPower, 1);
+        m_pd3dDevice->SetPixelShaderConstantF(18, (FLOAT*)&m_DiffuseMtrl, 1);
+
+        m_pd3dDevice->DrawPrimitive(D3DPT_QUADLIST, 0, 6);
+    }
+
+    // ------------------------------------------------------------
+    // Draw ground
+    // ------------------------------------------------------------
+    {
+        XMMATRIX groundShadowMtx = g_matWorld2 * lightViewProj;
+        groundShadowMtx = XMMatrixTranspose(groundShadowMtx);
+
+        m_pd3dDevice->SetTexture(0, m_Texture2);
+        m_pd3dDevice->SetTexture(1, m_Texture3);
+        m_pd3dDevice->SetTexture(2, m_pShadowMap);
+
+        m_pd3dDevice->SetVertexShaderConstantF(0,  (FLOAT*)&g_MatWVP2, 4);
+        m_pd3dDevice->SetVertexShaderConstantF(6,  (FLOAT*)&g_InvWorld2, 4);
+        m_pd3dDevice->SetVertexShaderConstantF(14, (FLOAT*)&g_matWorld2, 4);
+        m_pd3dDevice->SetVertexShaderConstantF(22, (FLOAT*)&groundShadowMtx, 4);
+
+        m_pd3dDevice->SetPixelShaderConstantF(10, (FLOAT*)&m_SpecularMtrl2, 1);
+        m_pd3dDevice->SetPixelShaderConstantF(12, (FLOAT*)&m_SpecularPower2, 1);
+        m_pd3dDevice->SetPixelShaderConstantF(18, (FLOAT*)&m_DiffuseMtrl2, 1);
+
+        m_pd3dDevice->DrawPrimitive(D3DPT_QUADLIST, 0, 6);
+    }
+
+    // ------------------------------------------------------------
+    // UI
+    // ------------------------------------------------------------
+    m_Timer.MarkFrame();
+
+    m_Font.Begin();
+    m_Font.SetScaleFactors(1.2f, 1.2f);
+    m_Font.DrawText(0, 0, 0xffffffff, L"XBOX360 Demo");
+    m_Font.SetScaleFactors(1.0f, 1.0f);
+    m_Font.DrawText(0, 0, 0xffffff00, m_Timer.GetFrameRate(), ATGFONT_RIGHT);
+
+    float fps = (float)_wtof(m_Timer.GetFrameRate());
+    if (fps < 0.001f)
+        fps = 0.001f;
+
+    float frameTimeMs = 1000.0f / fps;
+
+    WCHAR buffer[64];
+    swprintf_s(buffer, L"Frame Time: %.2f ms", frameTimeMs);
+    m_Font.DrawText(0, 20, 0xffffff00, buffer, ATGFONT_RIGHT);
+
+    m_Font.End();
+
+    m_pd3dDevice->Present(NULL, NULL, NULL, NULL);
+
+    return S_OK;
 }
