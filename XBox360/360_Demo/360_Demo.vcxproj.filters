@@ -30,6 +30,10 @@
     <None Include="Textures\Rocks.tga" />
     <None Include="Media\Textures\grass.tga" />
     <None Include="Release\Media\Textures\grass.tga" />
+    <None Include="Release\Media\Textures\cube_albedo.tga" />
+    <None Include="Release\Media\Textures\cube_normal.tga" />
+    <None Include="Release\Media\Textures\ground_albedo.tga" />
+    <None Include="Release\Media\Textures\ground_normal.tga" />
   </ItemGroup>
   <ItemGroup>
     <CustomBuild Include="Release\Media\Textures\Rocks.tga" />
@@ -39,5 +43,9 @@
     <CustomBuild Include="Media\Textures\crate.tga" />
     <CustomBuild Include="Release\Media\Fonts\Arial_16.xpr" />
     <CustomBuild Include="Media\Fonts\Arial_16.xpr" />
+    <CustomBuild Include="Media\Textures\cube_albedo.tga" />
+    <CustomBuild Include="Media\Textures\cube_normal.tga" />
+    <CustomBuild Include="Media\Textures\ground_albedo.tga" />
+    <CustomBuild Include="Media\Textures\ground_normal.tga" />
   </ItemGroup>
 </Project>

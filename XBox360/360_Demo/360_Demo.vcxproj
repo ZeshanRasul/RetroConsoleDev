@@ -79,10 +79,26 @@
     <CustomBuild Include="Release\Media\Fonts\Arial_16.xpr">
       <FileType>Document</FileType>
     </CustomBuild>
+    <CustomBuild Include="Media\Textures\cube_albedo.tga">
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="Media\Textures\cube_normal.tga">
+      <FileType>Document</FileType>
+    </CustomBuild>
     <None Include="Media\Textures\grass.tga" />
+    <CustomBuild Include="Media\Textures\ground_albedo.tga">
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <CustomBuild Include="Media\Textures\ground_normal.tga">
+      <FileType>Document</FileType>
+    </CustomBuild>
+    <None Include="Release\Media\Textures\cube_albedo.tga" />
+    <None Include="Release\Media\Textures\cube_normal.tga" />
     <None Include="Release\Media\Textures\grass.tga">
       <DeploymentContent>false</DeploymentContent>
     </None>
+    <None Include="Release\Media\Textures\ground_albedo.tga" />
+    <None Include="Release\Media\Textures\ground_normal.tga" />
     <None Include="Textures\Rocks.tga" />
   </ItemGroup>
   <ItemGroup>

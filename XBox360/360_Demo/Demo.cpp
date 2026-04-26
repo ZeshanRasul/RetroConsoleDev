@@ -32,6 +32,7 @@ const CHAR* g_strVertexShaderProgram =
     "    float3 ObjPos : POSITION0;            "
     "    float3 Norm   : NORMAL0;              "
     "    float2 UV     : TEXCOORD0;            "
+	"	 float3 Tangent : TANGENT0;			   "
     "};                                        "
 
     "struct VS_OUT                             "
@@ -40,6 +41,7 @@ const CHAR* g_strVertexShaderProgram =
     "    float2 UV      : TEXCOORD0;           "
     "    float3 PosW    : TEXCOORD1;           "
     "    float3 NormalW : TEXCOORD2;           "
+	"	 float3 TangentW :TEXCOORD3;           "
     "};                                        "
 
     "VS_OUT main(VS_IN In)                     "
@@ -48,6 +50,7 @@ const CHAR* g_strVertexShaderProgram =
     "    Out.ProjPos = mul(float4(In.ObjPos, 1.0f), matWVP); "
     "    Out.PosW = mul(float4(In.ObjPos, 1.0f), gWorld).xyz; "
     "    Out.NormalW = normalize(mul(float4(In.Norm, 0.0f), g_InvWorld).xyz); "
+	"    Out.TangentW = normalize(mul(float4(In.Tangent, 0.0f), gWorld).xyz);"
     "    Out.UV = In.UV;                       "
     "    return Out;                           "
     "}                                         ";
@@ -58,7 +61,7 @@ const CHAR* g_strVertexShaderProgram =
 //--------------------------------------------------------------------------------------
 const CHAR* g_strPixelShaderProgram =
     "sampler2D ColorTexture : register(s0);     "
-
+	"sampler2D NormalTexture : register(s1);"
     "float4 gLightVecW      : register(c4);     "
     "float4 gDiffuseLight   : register(c5);     "
     "float4 gSpecularMtrl   : register(c10);    "
@@ -73,6 +76,7 @@ const CHAR* g_strPixelShaderProgram =
     "    float2 UV      : TEXCOORD0;           "
     "    float3 PosW    : TEXCOORD1;           "
     "    float3 NormalW : TEXCOORD2;           "
+	"    float3 TangentW : TEXCOORD3;"
     "};                                        "
 
     "float4 main(PS_IN In) : COLOR             "
@@ -80,13 +84,28 @@ const CHAR* g_strPixelShaderProgram =
     "    float3 texColor = tex2D(ColorTexture, In.UV).rgb; "
 
     "    float3 N = normalize(In.NormalW);      "
+	"    float3 T = normalize(In.TangentW);     "
+	"    T = normalize(T - N * dot(T, N));      "
+    "    float3 B = cross(T, N);                "
+
+    "    float3 normalTex = tex2D(NormalTexture, In.UV).rgb; "
+    "    normalTex = normalTex * 2.0f - 1.0f;   "
+	"	 normalTex.xy *= 5.0f;"
+	"    normalTex.y = -normalTex.y;"
+	"	 normalTex = normalize(normalTex);"
+    "    float3 mappedNormal = normalize(       "
+    "        normalTex.x * T +                 "
+    "        normalTex.y * B +                 "
+    "        normalTex.z * N);                 "
+
+    "    N = mappedNormal;                      "
     "    float3 L = normalize(gLightVecW.xyz);  "
     "    float3 V = normalize(gEyePosW.xyz - In.PosW); "
     "    float3 H = normalize(L + V);           "
 
     "    float ndotl = max(dot(N, L), 0.0f);    "
 
-    "    float3 ambient = 0.12f * texColor * gDiffuseMtrl.rgb; "
+	"    float3 ambient = float3(0.03f, 0.03f, 0.03f) * texColor * gDiffuseMtrl.rgb; "
     "    float3 diffuse = ndotl * texColor * gDiffuseMtrl.rgb * gDiffuseLight.rgb; "
 
     "    float specAmount = pow(max(dot(N, H), 0.0f), gSpecularPower.r); "
@@ -138,46 +157,47 @@ struct BOXVERTEX
     XMFLOAT3 Position;
     XMFLOAT3 Normal;
 	XMFLOAT2 UV;
+	XMFLOAT3 Tangent;
 };
 
 //Unit Box
 BOXVERTEX g_BoxVertices[4*6] =
 {
-    // Front
-    { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2(0.0f, 0.0f) },
-    { XMFLOAT3(  1.0f, 1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2(1.0f, 0.0f) },
-    { XMFLOAT3(  1.0f,-1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2(1.0f, 1.0f) },
-    { XMFLOAT3( -1.0f,-1.0f, -1.0f ), XMFLOAT3( 0.0f, 0.0f, -1.0f ), XMFLOAT2(0.0f, 1.0f) },
+    // Front (Z-)
+    { XMFLOAT3(-1.0f,  1.0f, -1.0f), XMFLOAT3( 0.0f, 0.0f,-1.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT3( 1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3( 1.0f,  1.0f, -1.0f), XMFLOAT3( 0.0f, 0.0f,-1.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT3( 1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3( 1.0f, -1.0f, -1.0f), XMFLOAT3( 0.0f, 0.0f,-1.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT3( 1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3( 0.0f, 0.0f,-1.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT3( 1.0f, 0.0f, 0.0f) },
 
-    // Back
-    { XMFLOAT3( -1.0f, 1.0f,  1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ), XMFLOAT2(1.0f, 0.0f) },
-    { XMFLOAT3(  1.0f, 1.0f,  1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ), XMFLOAT2(0.0f, 0.0f) },
-    { XMFLOAT3(  1.0f,-1.0f,  1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ), XMFLOAT2(0.0f, 1.0f) },
-    { XMFLOAT3( -1.0f,-1.0f,  1.0f ), XMFLOAT3( 0.0f, 0.0f, 1.0f ), XMFLOAT2(1.0f, 1.0f) },
+    // Back (Z+)
+    { XMFLOAT3(-1.0f,  1.0f,  1.0f), XMFLOAT3( 0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3( 1.0f,  1.0f,  1.0f), XMFLOAT3( 0.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3( 1.0f, -1.0f,  1.0f), XMFLOAT3( 0.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3(-1.0f, -1.0f,  1.0f), XMFLOAT3( 0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f) },
 
-    // Left
-    { XMFLOAT3( -1.0f,-1.0f,  1.0f ), XMFLOAT3(-1.0f, 0.0f, 0.0f ), XMFLOAT2(0.0f, 1.0f) },
-    { XMFLOAT3( -1.0f, 1.0f,  1.0f ), XMFLOAT3(-1.0f, 0.0f, 0.0f ), XMFLOAT2(0.0f, 0.0f) },
-    { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3(-1.0f, 0.0f, 0.0f ), XMFLOAT2(1.0f, 0.0f) },
-    { XMFLOAT3( -1.0f,-1.0f, -1.0f ), XMFLOAT3(-1.0f, 0.0f, 0.0f ), XMFLOAT2(1.0f, 1.0f) },
+    // Left (X-)
+    { XMFLOAT3(-1.0f, -1.0f,  1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+    { XMFLOAT3(-1.0f,  1.0f,  1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+    { XMFLOAT3(-1.0f,  1.0f, -1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+    { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(-1.0f, 0.0f, 0.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
 
-    // Right
-    { XMFLOAT3( 1.0f,-1.0f,  1.0f ), XMFLOAT3(1.0f, 0.0f, 0.0f ), XMFLOAT2(1.0f, 1.0f) },
-    { XMFLOAT3( 1.0f, 1.0f,  1.0f ), XMFLOAT3(1.0f, 0.0f, 0.0f ), XMFLOAT2(1.0f, 0.0f) },
-    { XMFLOAT3( 1.0f, 1.0f, -1.0f ), XMFLOAT3(1.0f, 0.0f, 0.0f ), XMFLOAT2(0.0f, 0.0f) },
-    { XMFLOAT3( 1.0f,-1.0f, -1.0f ), XMFLOAT3(1.0f, 0.0f, 0.0f ), XMFLOAT2(0.0f, 1.0f) },
+    // Right (X+)
+    { XMFLOAT3( 1.0f, -1.0f,  1.0f), XMFLOAT3( 1.0f, 0.0f, 0.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f,-1.0f) },
+    { XMFLOAT3( 1.0f,  1.0f,  1.0f), XMFLOAT3( 1.0f, 0.0f, 0.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT3(0.0f, 0.0f,-1.0f) },
+    { XMFLOAT3( 1.0f,  1.0f, -1.0f), XMFLOAT3( 1.0f, 0.0f, 0.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT3(0.0f, 0.0f,-1.0f) },
+    { XMFLOAT3( 1.0f, -1.0f, -1.0f), XMFLOAT3( 1.0f, 0.0f, 0.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT3(0.0f, 0.0f,-1.0f) },
 
-    // Bottom
-    { XMFLOAT3( -1.0f,-1.0f,  1.0f ), XMFLOAT3(0.0f,-1.0f, 0.0f ), XMFLOAT2(0.0f, 0.0f) },
-    { XMFLOAT3(  1.0f,-1.0f,  1.0f ), XMFLOAT3(0.0f,-1.0f, 0.0f ), XMFLOAT2(1.0f, 0.0f) },
-    { XMFLOAT3(  1.0f,-1.0f, -1.0f ), XMFLOAT3(0.0f,-1.0f, 0.0f ), XMFLOAT2(1.0f, 1.0f) },
-    { XMFLOAT3( -1.0f,-1.0f, -1.0f ), XMFLOAT3(0.0f,-1.0f, 0.0f ), XMFLOAT2(0.0f, 1.0f) },
+    // Bottom (Y-)
+    { XMFLOAT3(-1.0f, -1.0f,  1.0f), XMFLOAT3( 0.0f,-1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3( 1.0f, -1.0f,  1.0f), XMFLOAT3( 0.0f,-1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3( 1.0f, -1.0f, -1.0f), XMFLOAT3( 0.0f,-1.0f, 0.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3( 0.0f,-1.0f, 0.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
 
-    // Top
-    { XMFLOAT3( -1.0f, 1.0f,  1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f ), XMFLOAT2(0.0f, 1.0f) },
-    { XMFLOAT3(  1.0f, 1.0f,  1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f ), XMFLOAT2(1.0f, 1.0f) },
-    { XMFLOAT3(  1.0f, 1.0f, -1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f ), XMFLOAT2(1.0f, 0.0f) },
-    { XMFLOAT3( -1.0f, 1.0f, -1.0f ), XMFLOAT3(0.0f, 1.0f, 0.0f ), XMFLOAT2(0.0f, 0.0f) },
+    // Top (Y+)
+    { XMFLOAT3(-1.0f,  1.0f,  1.0f), XMFLOAT3( 0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3( 1.0f,  1.0f,  1.0f), XMFLOAT3( 0.0f, 1.0f, 0.0f), XMFLOAT2(1.0f, 1.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3( 1.0f,  1.0f, -1.0f), XMFLOAT3( 0.0f, 1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
+    { XMFLOAT3(-1.0f,  1.0f, -1.0f), XMFLOAT3( 0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
 };
 
 class Demo_360 : public ATG::Application
@@ -262,7 +282,9 @@ public:
 	LPDIRECT3DPIXELSHADER9 m_pBoxPS;
 
 	IDirect3DTexture9* m_Texture;
+	IDirect3DTexture9* m_Texture1;
 	IDirect3DTexture9* m_Texture2;
+	IDirect3DTexture9* m_Texture3;
 	IDirect3DVertexDeclaration9* m_VertexDecl;
 	IDirect3DVertexShader9* m_VertexShader;
 	IDirect3DPixelShader9* m_PixelShader;
@@ -396,7 +418,7 @@ HRESULT Demo_360::Initialize()
     // filter it, generate mip levels, etc.  It is good for game prototyping
     // but is not suitable for final shipping code due to load time performance
     // reasons.
-    hr = D3DXCreateTextureFromFileEx( m_pd3dDevice, "game:\\Media\\Textures\\crate.tga",
+    hr = D3DXCreateTextureFromFileEx( m_pd3dDevice, "game:\\Media\\Textures\\cube_albedo.tga",
                                       D3DX_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT,
                                       0, D3DFMT_UNKNOWN, D3DPOOL_DEFAULT,
                                       D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL,
@@ -416,7 +438,33 @@ HRESULT Demo_360::Initialize()
     m_Texture->Format.SignY = GPUSIGN_GAMMA;
     m_Texture->Format.SignZ = GPUSIGN_GAMMA;
 
-	    hr = D3DXCreateTextureFromFileEx( m_pd3dDevice, "game:\\Media\\Textures\\grass.tga",
+	    hr = D3DXCreateTextureFromFileEx( m_pd3dDevice, "game:\\Media\\Textures\\cube_normal.tga",
+                                      D3DX_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT,
+                                      0, D3DFMT_UNKNOWN, D3DPOOL_DEFAULT,
+                                      D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL,
+                                      &m_Texture1 );
+    if( FAILED( hr ) )
+	{
+		char buffer[256];
+		sprintf( buffer, "Texture load failed. HRESULT = 0x%08X\n", hr );
+	    OutputDebugStringA( buffer );
+		DebugBreak();
+
+	}
+    // Make texture format sRGB, since the source image is encoded in sRGB space.
+    // Note: this is not the best quality way of doing this - see the ATG::ConvertTextureToGoodSRGB 
+    // function in the ATG framework for the full high-quality method.
+    m_Texture1->Format.SignX = GPUSIGN_GAMMA;
+    m_Texture1->Format.SignY = GPUSIGN_GAMMA;
+    m_Texture1->Format.SignZ = GPUSIGN_GAMMA;
+
+	    // Load texture
+
+    // D3DXCreateTextureFromFile loads a texture and can optionally resize it,
+    // filter it, generate mip levels, etc.  It is good for game prototyping
+    // but is not suitable for final shipping code due to load time performance
+    // reasons.
+    hr = D3DXCreateTextureFromFileEx( m_pd3dDevice, "game:\\Media\\Textures\\ground_albedo.tga",
                                       D3DX_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT,
                                       0, D3DFMT_UNKNOWN, D3DPOOL_DEFAULT,
                                       D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL,
@@ -435,6 +483,26 @@ HRESULT Demo_360::Initialize()
     m_Texture2->Format.SignX = GPUSIGN_GAMMA;
     m_Texture2->Format.SignY = GPUSIGN_GAMMA;
     m_Texture2->Format.SignZ = GPUSIGN_GAMMA;
+
+	    hr = D3DXCreateTextureFromFileEx( m_pd3dDevice, "game:\\Media\\Textures\\ground_normal.tga",
+                                      D3DX_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT,
+                                      0, D3DFMT_UNKNOWN, D3DPOOL_DEFAULT,
+                                      D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL,
+                                      &m_Texture3 );
+    if( FAILED( hr ) )
+	{
+		char buffer[256];
+		sprintf( buffer, "Texture load failed. HRESULT = 0x%08X\n", hr );
+	    OutputDebugStringA( buffer );
+		DebugBreak();
+
+	}
+    // Make texture format sRGB, since the source image is encoded in sRGB space.
+    // Note: this is not the best quality way of doing this - see the ATG::ConvertTextureToGoodSRGB 
+    // function in the ATG framework for the full high-quality method.
+    m_Texture3->Format.SignX = GPUSIGN_GAMMA;
+    m_Texture3->Format.SignY = GPUSIGN_GAMMA;
+    m_Texture3->Format.SignZ = GPUSIGN_GAMMA;
 
 
 
@@ -466,11 +534,12 @@ HRESULT Demo_360::Initialize()
     m_pInnerBoxVB->Unlock();
 
     // Define the vertex elements
-    static const D3DVERTEXELEMENT9 VertexElements[4] =
+    static const D3DVERTEXELEMENT9 VertexElements[5] =
     {
         { 0,  0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
         { 0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0 },
 		 { 0, 24, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+		 { 0, 32, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TANGENT, 0 },
         D3DDECL_END()
     };
 
@@ -496,15 +565,15 @@ HRESULT Demo_360::Initialize()
 	XMMATRIX Scaling = XMMatrixScaling(20.0f, 1.0f, 20.0f);
 	g_matWorld2 = g_matWorld2 * Scaling;
 
-	m_DiffuseMtrl = XMFLOAT4(0.7f, 0.6f, 0.5f, 1.0f);
-	m_SpecularMtrl  = XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f);
-	m_SpecularPower = XMFLOAT4(16.0f, 16.0f, 16.0f, 16.0f);
+	m_DiffuseMtrl  = XMFLOAT4(0.75f, 0.68f, 0.58f, 1.0f);
+	m_SpecularMtrl = XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f);
+	m_SpecularPower = XMFLOAT4(24.0f, 24.0f, 24.0f, 24.0f);
 
-	m_DiffuseMtrl2  = XMFLOAT4(0.35f, 0.55f, 0.35f, 1.0f);
-	m_SpecularMtrl2 = XMFLOAT4(0.05f, 0.05f, 0.05f, 1.0f);
+	m_DiffuseMtrl2  = XMFLOAT4(0.35f, 0.45f, 0.35f, 1.0f);
+	m_SpecularMtrl2 = XMFLOAT4(0.04f, 0.04f, 0.04f, 1.0f);
 	m_SpecularPower2 = XMFLOAT4(4.0f, 4.0f, 4.0f, 4.0f);
 
-	m_LightVecW = XMFLOAT4(-0.5f, 0.75f, -2.0f, 0.0f);
+	m_LightVecW = XMFLOAT4(-0.8f, 0.4f, -0.6f, 0.0f);
 	m_DiffuseLight = XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f);
 	m_SpecularLight = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 
@@ -587,32 +656,6 @@ HRESULT Demo_360::InitApp()
     // Shader code no longer required
     pShaderCode->Release();
     pShaderCode = NULL;
-
-    // Load texture
-
-    // D3DXCreateTextureFromFile loads a texture and can optionally resize it,
-    // filter it, generate mip levels, etc.  It is good for game prototyping
-    // but is not suitable for final shipping code due to load time performance
-    // reasons.
-    hr = D3DXCreateTextureFromFileEx( m_pd3dDevice, "game:\\Media\\Textures\\crate.tga",
-                                      D3DX_DEFAULT, D3DX_DEFAULT, D3DX_DEFAULT,
-                                      0, D3DFMT_UNKNOWN, D3DPOOL_DEFAULT,
-                                      D3DX_DEFAULT, D3DX_DEFAULT, 0, NULL, NULL,
-                                      &m_Texture );
-    if( FAILED( hr ) )
-	{
-		char buffer[256];
-		sprintf( buffer, "Texture load failed. HRESULT = 0x%08X\n", hr );
-	    OutputDebugStringA( buffer );
-		DebugBreak();
-
-	}
-    // Make texture format sRGB, since the source image is encoded in sRGB space.
-    // Note: this is not the best quality way of doing this - see the ATG::ConvertTextureToGoodSRGB 
-    // function in the ATG framework for the full high-quality method.
-    m_Texture->Format.SignX = GPUSIGN_GAMMA;
-    m_Texture->Format.SignY = GPUSIGN_GAMMA;
-    m_Texture->Format.SignZ = GPUSIGN_GAMMA;
 
 // Create and initialize vertex buffers
      m_pd3dDevice->CreateVertexBuffer( sizeof( g_BoxVertices ),
@@ -760,9 +803,13 @@ HRESULT Demo_360::Render()
 		m_pd3dDevice->SetSamplerState( 0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR );
 		m_pd3dDevice->SetSamplerState( 0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR );
 
+		m_pd3dDevice->SetSamplerState(1, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+		m_pd3dDevice->SetSamplerState(1, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+		m_pd3dDevice->SetSamplerState(1, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
+
 		// Set texture 0
 		m_pd3dDevice->SetTexture( 0, m_Texture );
-
+		m_pd3dDevice->SetTexture( 1, m_Texture1 );
         // Draw Box
         m_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&g_MatWVP, 4 );
 		m_pd3dDevice->SetPixelShaderConstantF(4, (FLOAT*)&m_LightVecW, 1);
@@ -778,6 +825,7 @@ HRESULT Demo_360::Render()
 
 		// Set texture 2
 		m_pd3dDevice->SetTexture( 0, m_Texture2 );
+		m_pd3dDevice->SetTexture( 1, m_Texture3 );
         // Draw Ground Box
         m_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&g_MatWVP2, 4 );
 		m_pd3dDevice->SetVertexShaderConstantF( 6, ( FLOAT* )&g_InvWorld2, 4 );
