@@ -97,7 +97,7 @@ const CHAR* g_strPixelShaderProgram =
     "float4 gSpecularPower  : register(c12);    "
     "float4 gEyePosW        : register(c13);    "
     "float4 gDiffuseMtrl    : register(c18);    "
-
+	"float4 g_RenderToggles : register(c26);"
     "struct PS_IN                              "
     "{                                         "
     "    float4 ProjPos : POSITION0;           "
@@ -119,15 +119,17 @@ const CHAR* g_strPixelShaderProgram =
 
     "    float3 normalTex = tex2D(NormalTexture, In.UV).rgb; "
     "    normalTex = normalTex * 2.0f - 1.0f;   "
-	"	 normalTex.xy *= 5.0f;"
+	"	 normalTex.xy *= 4.0f;"
 	"    normalTex.y = -normalTex.y;"
 	"	 normalTex = normalize(normalTex);"
     "    float3 mappedNormal = normalize(       "
     "        normalTex.x * T +                 "
     "        normalTex.y * B +                 "
     "        normalTex.z * N);                 "
-
+	"    if (g_RenderToggles.x > 0.5f)"
+	" {"
     "    N = mappedNormal;                      "
+	" }"
     "    float3 L = normalize(gLightVecW.xyz);  "
     "    float3 V = normalize(gEyePosW.xyz - In.PosW); "
     "    float3 H = normalize(L + V);           "
@@ -159,6 +161,10 @@ const CHAR* g_strPixelShaderProgram =
 		 "   shadow = 0.35f;"
 		"}"
 	"}"
+	" if (g_RenderToggles.y < 0.5f)"
+	"{"
+	" shadow = 1.0f;"
+	"}"
 	"    float3 finalCol = ambient + shadow * (diffuse + specular); "
     "    finalCol = saturate(finalCol);          "
 
@@ -179,6 +185,8 @@ XMMATRIX g_InvWorld;
 XMMATRIX g_InvWorld2;
 XMMATRIX g_MatWVP;
 XMMATRIX g_MatWVP2;
+XMFLOAT4 g_RenderToggles;
+
 
 BOOL g_bWidescreen = TRUE;
 const int SHADOW_SIZE = 256;
@@ -247,6 +255,54 @@ BOXVERTEX g_BoxVertices[4*6] =
     { XMFLOAT3( 1.0f,  1.0f, -1.0f), XMFLOAT3( 0.0f, 1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
     { XMFLOAT3(-1.0f,  1.0f, -1.0f), XMFLOAT3( 0.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f), XMFLOAT3(1.0f, 0.0f, 0.0f) },
 };
+
+// Main cube / hero crate
+XMMATRIX g_matCrate0 =
+    XMMatrixScaling(1.5f, 1.5f, 1.5f) *
+    XMMatrixRotationY(0.25f) *
+    XMMatrixTranslation(0.0f, -5.5f, 0.0f);
+
+// Small crate front-left
+XMMATRIX g_matCrate1 =
+    XMMatrixScaling(1.0f, 1.0f, 1.0f) *
+    XMMatrixRotationY(-0.6f) *
+    XMMatrixTranslation(-5.0f, -6.0f, 3.0f);
+
+// Tall crate / pillar
+XMMATRIX g_matCrate2 =
+    XMMatrixScaling(1.0f, 2.5f, 1.0f) *
+    XMMatrixRotationY(0.1f) *
+    XMMatrixTranslation(4.5f, -4.5f, 2.5f);
+
+// Low wide block
+XMMATRIX g_matCrate3 =
+    XMMatrixScaling(2.5f, 0.6f, 1.2f) *
+    XMMatrixRotationY(0.9f) *
+    XMMatrixTranslation(-3.5f, -6.4f, -4.0f);
+
+// Back-right stack bottom
+XMMATRIX g_matCrate4 =
+    XMMatrixScaling(1.2f, 1.2f, 1.2f) *
+    XMMatrixRotationY(-0.2f) *
+    XMMatrixTranslation(5.5f, -5.8f, -4.5f);
+
+// Back-right stack top
+XMMATRIX g_matCrate5 =
+    XMMatrixScaling(0.9f, 0.9f, 0.9f) *
+    XMMatrixRotationY(0.7f) *
+    XMMatrixTranslation(5.5f, -3.7f, -4.5f);
+
+// Long wall segment left
+XMMATRIX g_matCrate6 =
+    XMMatrixScaling(0.7f, 1.2f, 3.5f) *
+    XMMatrixRotationY(0.15f) *
+    XMMatrixTranslation(-8.0f, -5.8f, -1.0f);
+
+// Long wall segment rear
+XMMATRIX g_matCrate7 =
+    XMMatrixScaling(4.0f, 1.0f, 0.7f) *
+    XMMatrixRotationY(-0.1f) *
+    XMMatrixTranslation(0.0f, -6.0f, -8.0f);
 
 class Demo_360 : public ATG::Application
 {
@@ -405,7 +461,7 @@ HRESULT Demo_360::Initialize()
 	// Confine text drawing to the title safe area
     m_Font.SetWindow( ATG::GetTitleSafeArea() );
 
-	m_CameraRadius    = 16.0f;
+	m_CameraRadius    = 26.0f;
 	m_CameraRotationY = 1.2 * D3DX_PI;
 	m_CameraHeight    = 3.0f;
 	//InitScene();
@@ -676,7 +732,7 @@ HRESULT Demo_360::Initialize()
 	up       = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
 	lightView = XMMatrixLookAtLH(lightPos, target, up);
-	lightProj = XMMatrixOrthographicLH(40.0f, 40.0f, 1.0f, 80.0f);
+	lightProj = XMMatrixOrthographicLH(50.0f, 50.0f, 1.0f, 120.0f);
 
 	lightViewProj = lightView * lightProj;
 
@@ -713,6 +769,9 @@ HRESULT Demo_360::Initialize()
 		OutputDebugStringA("Create shadow render target failed\n");
 		DebugBreak();
 	}
+
+	g_RenderToggles = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
+
 	return S_OK;
 }
 
@@ -748,6 +807,22 @@ HRESULT Demo_360::Update()
 	if( m_pGamepad->wPressedButtons & XINPUT_GAMEPAD_DPAD_RIGHT )
 	{
             m_CameraRotationY   -= 25.0f * dt;
+	}
+
+	if (m_pGamepad->wPressedButtons & XINPUT_GAMEPAD_X)
+	{
+		if (g_RenderToggles.x > 0.5f)
+			g_RenderToggles.x = 0.0f;
+		else
+			g_RenderToggles.x = 1.0f;
+	}
+
+	if (m_pGamepad->wPressedButtons & XINPUT_GAMEPAD_A)
+	{
+		if (g_RenderToggles.y > 0.5f)
+			g_RenderToggles.y = 0.0f;
+		else
+			g_RenderToggles.y = 1.0f;
 	}
 
 	// If we rotate over 360 degrees, just roll back to 0
@@ -793,8 +868,104 @@ void Demo_360::BuildViewMatrix()
 
 HRESULT Demo_360::Render()
 {
+    struct SceneCube
+    {
+        XMMATRIX World;
+        IDirect3DTexture9* Albedo;
+        IDirect3DTexture9* Normal;
+        XMFLOAT4 DiffuseMtrl;
+        XMFLOAT4 SpecularMtrl;
+        XMFLOAT4 SpecularPower;
+    };
+
+    // Ground top is roughly at y = -6.0 because:
+    // ground scaleY = 1.0, translationY = -7.0, cube extends from -1 to +1.
+    SceneCube scene[] =
+    {
+        // Main hero crate
+        {
+            XMMatrixScaling(1.5f, 1.5f, 1.5f) *
+            XMMatrixRotationY(0.25f) *
+            XMMatrixTranslation(0.0f, -4.5f, 0.0f),
+            m_Texture, m_Texture1,
+            m_DiffuseMtrl, m_SpecularMtrl, m_SpecularPower
+        },
+
+        // Small front-left crate
+        {
+            XMMatrixScaling(1.0f, 1.0f, 1.0f) *
+            XMMatrixRotationY(-0.6f) *
+            XMMatrixTranslation(-5.0f, -5.0f, 3.0f),
+            m_Texture, m_Texture1,
+            m_DiffuseMtrl, m_SpecularMtrl, m_SpecularPower
+        },
+
+        // Tall pillar
+        {
+            XMMatrixScaling(1.0f, 2.5f, 1.0f) *
+            XMMatrixRotationY(0.1f) *
+            XMMatrixTranslation(4.5f, -3.5f, 2.5f),
+            m_Texture, m_Texture1,
+            m_DiffuseMtrl, m_SpecularMtrl, m_SpecularPower
+        },
+
+        // Low wide block
+        {
+            XMMatrixScaling(2.5f, 0.6f, 1.2f) *
+            XMMatrixRotationY(0.9f) *
+            XMMatrixTranslation(-3.5f, -5.4f, -4.0f),
+            m_Texture, m_Texture1,
+            m_DiffuseMtrl, m_SpecularMtrl, m_SpecularPower
+        },
+
+        // Stack bottom
+        {
+            XMMatrixScaling(1.2f, 1.2f, 1.2f) *
+            XMMatrixRotationY(-0.2f) *
+            XMMatrixTranslation(5.5f, -4.8f, -4.5f),
+            m_Texture, m_Texture1,
+            m_DiffuseMtrl, m_SpecularMtrl, m_SpecularPower
+        },
+
+        // Stack top
+        {
+            XMMatrixScaling(0.9f, 0.9f, 0.9f) *
+            XMMatrixRotationY(0.7f) *
+            XMMatrixTranslation(5.5f, -2.7f, -4.5f),
+            m_Texture, m_Texture1,
+            m_DiffuseMtrl, m_SpecularMtrl, m_SpecularPower
+        },
+
+        // Left wall segment
+        {
+            XMMatrixScaling(0.7f, 1.2f, 3.5f) *
+            XMMatrixRotationY(0.15f) *
+            XMMatrixTranslation(-8.0f, -4.8f, -1.0f),
+            m_Texture, m_Texture1,
+            m_DiffuseMtrl, m_SpecularMtrl, m_SpecularPower
+        },
+
+        // Rear wall segment
+        {
+            XMMatrixScaling(4.0f, 1.0f, 0.7f) *
+            XMMatrixRotationY(-0.1f) *
+            XMMatrixTranslation(0.0f, -5.0f, -8.0f),
+            m_Texture, m_Texture1,
+            m_DiffuseMtrl, m_SpecularMtrl, m_SpecularPower
+        },
+
+        // Ground
+        {
+            g_matWorld2,
+            m_Texture2, m_Texture3,
+            m_DiffuseMtrl2, m_SpecularMtrl2, m_SpecularPower2
+        }
+    };
+
+    const int sceneCount = sizeof(scene) / sizeof(scene[0]);
+
     // ------------------------------------------------------------
-    // PASS 1: Render shadow map
+    // PASS 1: Shadow map
     // ------------------------------------------------------------
     D3DVIEWPORT9 oldViewport;
     m_pd3dDevice->GetViewport(&oldViewport);
@@ -833,29 +1004,16 @@ HRESULT Demo_360::Render()
     m_pd3dDevice->SetTexture(1, NULL);
     m_pd3dDevice->SetTexture(2, NULL);
 
-    // Shadow pass: cube
+    for (int i = 0; i < sceneCount; ++i)
     {
-        XMMATRIX cubeShadowMtx = g_matWorld * lightViewProj;
-        cubeShadowMtx = XMMatrixTranspose(cubeShadowMtx);
+        XMMATRIX shadowMtx = scene[i].World * lightViewProj;
+        shadowMtx = XMMatrixTranspose(shadowMtx);
 
-        // IMPORTANT: shadow VS expects c0
-        m_pd3dDevice->SetVertexShaderConstantF(0, (FLOAT*)&cubeShadowMtx, 4);
-
+        // Shadow VS expects c0
+        m_pd3dDevice->SetVertexShaderConstantF(0, (FLOAT*)&shadowMtx, 4);
         m_pd3dDevice->DrawPrimitive(D3DPT_QUADLIST, 0, 6);
     }
 
-    // Shadow pass: ground
-    {
-        XMMATRIX groundShadowMtx = g_matWorld2 * lightViewProj;
-        groundShadowMtx = XMMatrixTranspose(groundShadowMtx);
-
-        // IMPORTANT: shadow VS expects c0
-        m_pd3dDevice->SetVertexShaderConstantF(0, (FLOAT*)&groundShadowMtx, 4);
-
-        m_pd3dDevice->DrawPrimitive(D3DPT_QUADLIST, 0, 6);
-    }
-
-    // Resolve shadow render target to texture while shadow RT is active
     m_pd3dDevice->Resolve(
         0,
         NULL,
@@ -868,7 +1026,6 @@ HRESULT Demo_360::Render()
         0,
         NULL);
 
-    // Restore backbuffer
     m_pd3dDevice->SetRenderTarget(0, oldRenderTarget);
     m_pd3dDevice->SetViewport(&oldViewport);
 
@@ -876,7 +1033,7 @@ HRESULT Demo_360::Render()
         oldRenderTarget->Release();
 
     // ------------------------------------------------------------
-    // PASS 2: Main scene render
+    // PASS 2: Main render
     // ------------------------------------------------------------
     m_pd3dDevice->Clear(
         0L,
@@ -909,54 +1066,35 @@ HRESULT Demo_360::Render()
     m_pd3dDevice->SetSamplerState(2, D3DSAMP_MINFILTER, D3DTEXF_POINT);
     m_pd3dDevice->SetSamplerState(2, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
 
-    // Shared pixel shader constants
+    // Shared pixel constants
     m_pd3dDevice->SetPixelShaderConstantF(4,  (FLOAT*)&m_LightVecW, 1);
     m_pd3dDevice->SetPixelShaderConstantF(5,  (FLOAT*)&m_DiffuseLight, 1);
     m_pd3dDevice->SetPixelShaderConstantF(11, (FLOAT*)&m_SpecularLight, 1);
     m_pd3dDevice->SetPixelShaderConstantF(13, (FLOAT*)&m_vEye, 1);
+    m_pd3dDevice->SetPixelShaderConstantF(26, (FLOAT*)&g_RenderToggles, 1);
 
-    // ------------------------------------------------------------
-    // Draw cube
-    // ------------------------------------------------------------
+    for (int i = 0; i < sceneCount; ++i)
     {
-        XMMATRIX cubeShadowMtx = g_matWorld * lightViewProj;
-        cubeShadowMtx = XMMatrixTranspose(cubeShadowMtx);
+        XMMATRIX wvp = scene[i].World * g_matView * g_matProj;
+        wvp = XMMatrixTranspose(wvp);
 
-        m_pd3dDevice->SetTexture(0, m_Texture);
-        m_pd3dDevice->SetTexture(1, m_Texture1);
+        XMMATRIX invWorld = XMMatrixInverse(&XMMatrixDeterminant(scene[i].World), scene[i].World);
+
+        XMMATRIX shadowMtx = scene[i].World * lightViewProj;
+        shadowMtx = XMMatrixTranspose(shadowMtx);
+
+        m_pd3dDevice->SetTexture(0, scene[i].Albedo);
+        m_pd3dDevice->SetTexture(1, scene[i].Normal);
         m_pd3dDevice->SetTexture(2, m_pShadowMap);
 
-        m_pd3dDevice->SetVertexShaderConstantF(0,  (FLOAT*)&g_MatWVP, 4);
-        m_pd3dDevice->SetVertexShaderConstantF(6,  (FLOAT*)&g_InvWorld, 4);
-        m_pd3dDevice->SetVertexShaderConstantF(14, (FLOAT*)&g_matWorld, 4);
-        m_pd3dDevice->SetVertexShaderConstantF(22, (FLOAT*)&cubeShadowMtx, 4);
+        m_pd3dDevice->SetVertexShaderConstantF(0,  (FLOAT*)&wvp, 4);
+        m_pd3dDevice->SetVertexShaderConstantF(6,  (FLOAT*)&invWorld, 4);
+        m_pd3dDevice->SetVertexShaderConstantF(14, (FLOAT*)&scene[i].World, 4);
+        m_pd3dDevice->SetVertexShaderConstantF(22, (FLOAT*)&shadowMtx, 4);
 
-        m_pd3dDevice->SetPixelShaderConstantF(10, (FLOAT*)&m_SpecularMtrl, 1);
-        m_pd3dDevice->SetPixelShaderConstantF(12, (FLOAT*)&m_SpecularPower, 1);
-        m_pd3dDevice->SetPixelShaderConstantF(18, (FLOAT*)&m_DiffuseMtrl, 1);
-
-        m_pd3dDevice->DrawPrimitive(D3DPT_QUADLIST, 0, 6);
-    }
-
-    // ------------------------------------------------------------
-    // Draw ground
-    // ------------------------------------------------------------
-    {
-        XMMATRIX groundShadowMtx = g_matWorld2 * lightViewProj;
-        groundShadowMtx = XMMatrixTranspose(groundShadowMtx);
-
-        m_pd3dDevice->SetTexture(0, m_Texture2);
-        m_pd3dDevice->SetTexture(1, m_Texture3);
-        m_pd3dDevice->SetTexture(2, m_pShadowMap);
-
-        m_pd3dDevice->SetVertexShaderConstantF(0,  (FLOAT*)&g_MatWVP2, 4);
-        m_pd3dDevice->SetVertexShaderConstantF(6,  (FLOAT*)&g_InvWorld2, 4);
-        m_pd3dDevice->SetVertexShaderConstantF(14, (FLOAT*)&g_matWorld2, 4);
-        m_pd3dDevice->SetVertexShaderConstantF(22, (FLOAT*)&groundShadowMtx, 4);
-
-        m_pd3dDevice->SetPixelShaderConstantF(10, (FLOAT*)&m_SpecularMtrl2, 1);
-        m_pd3dDevice->SetPixelShaderConstantF(12, (FLOAT*)&m_SpecularPower2, 1);
-        m_pd3dDevice->SetPixelShaderConstantF(18, (FLOAT*)&m_DiffuseMtrl2, 1);
+        m_pd3dDevice->SetPixelShaderConstantF(10, (FLOAT*)&scene[i].SpecularMtrl, 1);
+        m_pd3dDevice->SetPixelShaderConstantF(12, (FLOAT*)&scene[i].SpecularPower, 1);
+        m_pd3dDevice->SetPixelShaderConstantF(18, (FLOAT*)&scene[i].DiffuseMtrl, 1);
 
         m_pd3dDevice->DrawPrimitive(D3DPT_QUADLIST, 0, 6);
     }
@@ -970,6 +1108,7 @@ HRESULT Demo_360::Render()
     m_Font.SetScaleFactors(1.2f, 1.2f);
     m_Font.DrawText(0, 0, 0xffffffff, L"XBOX360 Demo");
     m_Font.SetScaleFactors(1.0f, 1.0f);
+
     m_Font.DrawText(0, 0, 0xffffff00, m_Timer.GetFrameRate(), ATGFONT_RIGHT);
 
     float fps = (float)_wtof(m_Timer.GetFrameRate());
