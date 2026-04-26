@@ -22,75 +22,82 @@
 //--------------------------------------------------------------------------------------
 // Vertex shader
 //--------------------------------------------------------------------------------------
-const CHAR*         g_strVertexShaderProgram =
-    "                                              "
-    "                                              "
-    " float4x4 matWVP : register(c0);              "
-    "												"
-	" float4 gLightVecW : register(c4);    			"
-	" float4 gDiffuseLight : register(c5); 			"
-	"float4x4 g_InvWorld : register(c6);            "
-	" float4 gSpecularMtrl : register(c10);"
-	" float4 gSpecularLight : register(c11);"
-	" float4 gSpecularPower : register(c12);"
-	" float4 gEyePosW        : register(c13);"
-	" float4x4 gWorld        : register(c14);"
-	" struct VS_IN                                 "
-    " {                                            "
-    "     float3 ObjPos : POSITION0;                "  
-	"	  float3 Norm   : NORMAL;	"
-    "     float2 UV     : TEXCOORD0;                  "  
-    " };                                           "
-    "                                              "
-    " struct VS_OUT                                "
-    " {                                            "
-    "     float4 ProjPos  : POSITION0;              "  
-	"	  float2 UV         : TEXCOORD0;"
-	"      float4 Diffuse : COLOR0;"
-	"      float4 Spec : COLOR1;  "
-    " };                                           "
-    "                                              "
-    " VS_OUT main( VS_IN In )                      "
-    " {                                            "
-    "     VS_OUT Out;                              "
-	"     Out.ProjPos = mul(float4(In.ObjPos, 1.0f), matWVP );  " 
-	"     float3 normalW = mul(float4(In.Norm, 0.0f), g_InvWorld).xyz;       "
-	"	  normalW = normalize(normalW); "
-	"     float3 posW = mul(float4(In.ObjPos, 1.0f), gWorld).xyz;  "
-	"      float3 lightVecW = normalize(gLightVecW.xyz);"
-	"     float s = max(dot(lightVecW, normalW), 0.0f);"
-	"     Out.Diffuse = s * (float4(0.8f, 0.8f, 0.8f, 1.0f) * gDiffuseLight);"
-	"float3 toEye = normalize(gEyePosW.xyz - posW);"
-	"float3 r = reflect(-lightVecW, normalW);"
-	"float t  = pow(max(dot(r, toEye), 0.0f), gSpecularPower.r);			  "
-	"float3 spec = t*(gSpecularMtrl*gSpecularLight).rgb;				  "
-"    Out.Spec = float4(spec, 1.0f);"
-	"	  Out.UV = In.UV;	"
-    "     return Out;                              "  
-    " }                                            ";
+const CHAR* g_strVertexShaderProgram =
+    "float4x4 matWVP       : register(c0);      "
+    "float4x4 g_InvWorld   : register(c6);      "
+    "float4x4 gWorld       : register(c14);     "
+
+    "struct VS_IN                              "
+    "{                                         "
+    "    float3 ObjPos : POSITION0;            "
+    "    float3 Norm   : NORMAL0;              "
+    "    float2 UV     : TEXCOORD0;            "
+    "};                                        "
+
+    "struct VS_OUT                             "
+    "{                                         "
+    "    float4 ProjPos : POSITION0;           "
+    "    float2 UV      : TEXCOORD0;           "
+    "    float3 PosW    : TEXCOORD1;           "
+    "    float3 NormalW : TEXCOORD2;           "
+    "};                                        "
+
+    "VS_OUT main(VS_IN In)                     "
+    "{                                         "
+    "    VS_OUT Out;                           "
+    "    Out.ProjPos = mul(float4(In.ObjPos, 1.0f), matWVP); "
+    "    Out.PosW = mul(float4(In.ObjPos, 1.0f), gWorld).xyz; "
+    "    Out.NormalW = normalize(mul(float4(In.Norm, 0.0f), g_InvWorld).xyz); "
+    "    Out.UV = In.UV;                       "
+    "    return Out;                           "
+    "}                                         ";
 
 
-//-------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------
 // Pixel shader
-//-------------------------------------------------------------------------------------
-const CHAR*         g_strPixelShaderProgram =
-    " sampler2D ColorTexture : register(s0);       "
-	"         "
-	"         "
-    " struct PS_IN                                 "
-    " {                                            "
-   "     float4 ProjPos  : POSITION0;              "  
-	"      float2 UV          : TEXCOORD0;"
-	"      float4 Diffuse : COLOR0;"
-	"       float4 Spec : COLOR1;"
-    " };                                           "  
-    "                                              "
-    " float4 main( PS_IN In ) : COLOR              "
-    " {                                            "
-	"     float3 texColor = tex2D(ColorTexture, In.UV).rgb;"
-	"     float3 finalCol = In.Diffuse.rgb * texColor; "
-    "     return float4(finalCol + In.Spec.rgb, In.Diffuse.a);    "  
-    " }                                            ";
+//--------------------------------------------------------------------------------------
+const CHAR* g_strPixelShaderProgram =
+    "sampler2D ColorTexture : register(s0);     "
+
+    "float4 gLightVecW      : register(c4);     "
+    "float4 gDiffuseLight   : register(c5);     "
+    "float4 gSpecularMtrl   : register(c10);    "
+    "float4 gSpecularLight  : register(c11);    "
+    "float4 gSpecularPower  : register(c12);    "
+    "float4 gEyePosW        : register(c13);    "
+    "float4 gDiffuseMtrl    : register(c18);    "
+
+    "struct PS_IN                              "
+    "{                                         "
+    "    float4 ProjPos : POSITION0;           "
+    "    float2 UV      : TEXCOORD0;           "
+    "    float3 PosW    : TEXCOORD1;           "
+    "    float3 NormalW : TEXCOORD2;           "
+    "};                                        "
+
+    "float4 main(PS_IN In) : COLOR             "
+    "{                                         "
+    "    float3 texColor = tex2D(ColorTexture, In.UV).rgb; "
+
+    "    float3 N = normalize(In.NormalW);      "
+    "    float3 L = normalize(gLightVecW.xyz);  "
+    "    float3 V = normalize(gEyePosW.xyz - In.PosW); "
+    "    float3 H = normalize(L + V);           "
+
+    "    float ndotl = max(dot(N, L), 0.0f);    "
+
+    "    float3 ambient = 0.12f * texColor * gDiffuseMtrl.rgb; "
+    "    float3 diffuse = ndotl * texColor * gDiffuseMtrl.rgb * gDiffuseLight.rgb; "
+
+    "    float specAmount = pow(max(dot(N, H), 0.0f), gSpecularPower.r); "
+    "    specAmount *= ndotl;                   "
+    "    float3 specular = specAmount * gSpecularMtrl.rgb * gSpecularLight.rgb; "
+
+    "    float3 finalCol = ambient + diffuse + specular; "
+    "    finalCol = saturate(finalCol);          "
+
+    "    return float4(finalCol, 1.0f);          "
+    "}                                         ";
 
 //-------------------------------------------------------------------------------------
 // Global variables
@@ -264,9 +271,15 @@ public:
 	XMMATRIX m_MatWVP;
 	XMFLOAT4 m_LightVecW;
 	XMFLOAT4 m_DiffuseLight;
-	XMFLOAT4 m_SpecularMtrl; 
 	XMFLOAT4 m_SpecularLight;
+
+	XMFLOAT4 m_DiffuseMtrl;
+	XMFLOAT4 m_SpecularMtrl; 
 	XMFLOAT4 m_SpecularPower;
+
+	XMFLOAT4 m_DiffuseMtrl2;
+	XMFLOAT4 m_SpecularMtrl2; 
+	XMFLOAT4 m_SpecularPower2;
 
 	float m_CameraRotationY;
 	float m_CameraRadius;
@@ -483,11 +496,18 @@ HRESULT Demo_360::Initialize()
 	XMMATRIX Scaling = XMMatrixScaling(20.0f, 1.0f, 20.0f);
 	g_matWorld2 = g_matWorld2 * Scaling;
 
+	m_DiffuseMtrl = XMFLOAT4(0.7f, 0.6f, 0.5f, 1.0f);
+	m_SpecularMtrl  = XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f);
+	m_SpecularPower = XMFLOAT4(16.0f, 16.0f, 16.0f, 16.0f);
+
+	m_DiffuseMtrl2  = XMFLOAT4(0.35f, 0.55f, 0.35f, 1.0f);
+	m_SpecularMtrl2 = XMFLOAT4(0.05f, 0.05f, 0.05f, 1.0f);
+	m_SpecularPower2 = XMFLOAT4(4.0f, 4.0f, 4.0f, 4.0f);
+
 	m_LightVecW = XMFLOAT4(-0.5f, 0.75f, -2.0f, 0.0f);
-	m_DiffuseLight = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	m_SpecularMtrl  = XMFLOAT4(0.18f, 0.18f, 0.18f, 1.0f);
+	m_DiffuseLight = XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f);
 	m_SpecularLight = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
-	m_SpecularPower = XMFLOAT4(32.0f, 32.0f, 32.0f, 32.0f);
+
 	return S_OK;
 }
 
@@ -652,8 +672,17 @@ HRESULT Demo_360::InitApp()
 	XMMATRIX Scaling = XMMatrixScaling(20.0f, 1.0f, 20.0f);
 	g_matWorld2 = g_matWorld2 * Scaling;
 
+	m_DiffuseMtrl = XMFLOAT4(0.7f, 0.6f, 0.5f, 1.0f);
+	m_SpecularMtrl  = XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f);
+	m_SpecularPower = XMFLOAT4(16.0f, 16.0f, 16.0f, 16.0f);
+
+	m_DiffuseMtrl2  = XMFLOAT4(0.35f, 0.55f, 0.35f, 1.0f);
+	m_SpecularMtrl2 = XMFLOAT4(0.05f, 0.05f, 0.05f, 1.0f);
+	m_SpecularPower2 = XMFLOAT4(4.0f, 4.0f, 4.0f, 4.0f);
+
 	m_LightVecW = XMFLOAT4(-0.5f, 0.75f, -2.0f, 0.0f);
-	m_DiffuseLight = XMFLOAT4(0.8f, 0.1f, 0.1f, 1.0f);
+	m_DiffuseLight = XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f);
+	m_SpecularLight = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 
 	return S_OK;
 }
@@ -736,14 +765,15 @@ HRESULT Demo_360::Render()
 
         // Draw Box
         m_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&g_MatWVP, 4 );
-		m_pd3dDevice->SetVertexShaderConstantF(4, (FLOAT*)&m_LightVecW, 1);
-		m_pd3dDevice->SetVertexShaderConstantF(5, (FLOAT*)&m_DiffuseLight, 1);
+		m_pd3dDevice->SetPixelShaderConstantF(4, (FLOAT*)&m_LightVecW, 1);
+		m_pd3dDevice->SetPixelShaderConstantF(5, (FLOAT*)&m_DiffuseLight, 1);
 		m_pd3dDevice->SetVertexShaderConstantF( 6, ( FLOAT* )&g_InvWorld, 4 );
-		m_pd3dDevice->SetVertexShaderConstantF( 10, ( FLOAT* )&m_SpecularMtrl, 1 );
-		m_pd3dDevice->SetVertexShaderConstantF( 11, ( FLOAT* )&m_SpecularLight, 1 );
-		m_pd3dDevice->SetVertexShaderConstantF( 12, ( FLOAT* )&m_SpecularPower, 1 );
-		m_pd3dDevice->SetVertexShaderConstantF(13, (FLOAT*)&m_vEye, 1);
-		m_pd3dDevice->SetVertexShaderConstantF(14, (FLOAT*)&g_matWorld, 1);
+		m_pd3dDevice->SetPixelShaderConstantF( 10, ( FLOAT* )&m_SpecularMtrl, 1 );
+		m_pd3dDevice->SetPixelShaderConstantF( 11, ( FLOAT* )&m_SpecularLight, 1 );
+		m_pd3dDevice->SetPixelShaderConstantF( 12, ( FLOAT* )&m_SpecularPower, 1 );
+		m_pd3dDevice->SetPixelShaderConstantF(13, (FLOAT*)&m_vEye, 1);
+		m_pd3dDevice->SetVertexShaderConstantF(14, (FLOAT*)&g_matWorld, 4);
+		m_pd3dDevice->SetPixelShaderConstantF(18, (FLOAT*)&m_DiffuseMtrl, 1);
 		m_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
 
 		// Set texture 2
@@ -751,7 +781,10 @@ HRESULT Demo_360::Render()
         // Draw Ground Box
         m_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&g_MatWVP2, 4 );
 		m_pd3dDevice->SetVertexShaderConstantF( 6, ( FLOAT* )&g_InvWorld2, 4 );
-		m_pd3dDevice->SetVertexShaderConstantF(14, (FLOAT*)&g_matWorld2, 1);
+		m_pd3dDevice->SetPixelShaderConstantF( 10, ( FLOAT* )&m_SpecularMtrl2, 1 );
+		m_pd3dDevice->SetPixelShaderConstantF( 12, ( FLOAT* )&m_SpecularPower2, 1 );
+		m_pd3dDevice->SetVertexShaderConstantF(14, (FLOAT*)&g_matWorld2, 4);
+		m_pd3dDevice->SetPixelShaderConstantF(18, (FLOAT*)&m_DiffuseMtrl2, 1);
 		m_pd3dDevice->DrawPrimitive( D3DPT_QUADLIST, 0, 6 );
 
 		// Output title and framerate
@@ -763,6 +796,12 @@ HRESULT Demo_360::Render()
 			m_Font.DrawText( 0, 0, 0xffffffff, L"XBOX360 Demo" );
 			m_Font.SetScaleFactors( 1.0f, 1.0f );
 			m_Font.DrawText( 0, 0, 0xffffff00, m_Timer.GetFrameRate(), ATGFONT_RIGHT );
+
+			float fps = (float)_wtof(m_Timer.GetFrameRate());
+			float frameTimeMs = 1000.0f / fps;
+			WCHAR buffer[64];
+			swprintf_s(buffer, L"Frame Time: %.2f ms", frameTimeMs);
+			m_Font.DrawText(0, 20, 0xffffff00, buffer, ATGFONT_RIGHT);
 
 			// Display the total time the app has been running
 			DOUBLE fAppTimeInSeconds = m_Timer.GetAppTime();
@@ -778,7 +817,7 @@ HRESULT Demo_360::Render()
 			WCHAR strTime[80];
 			swprintf_s( strTime, L"%02ldd%02ldh%02ldm%02lds",
 						dwDays, dwHours, dwMinutes, dwSeconds );
-			m_Font.DrawText( 0, 20, 0xffffff00, strTime, ATGFONT_RIGHT );
+			m_Font.DrawText( 0, 40, 0xffffff00, strTime, ATGFONT_RIGHT );
 
 			m_Font.End();
 		}
