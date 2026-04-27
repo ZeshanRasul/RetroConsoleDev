@@ -1,22 +1,17 @@
 #include <xtl.h>
 #include <xboxmath.h>
-
 #include <iostream>
-
 #include <xgraphics.h>
 #include <AtgApp.h>
 #include <AtgFont.h>
-
 #include <AtgMesh.h>
-
 #include <AtgHelp.h>
 #include <AtgInput.h>
-
 #include <AtgResource.h>
-
 #include <AtgUtil.h>
 
-#include <d3d9.h>
+#include <AtgSceneAll.h>
+#include "Vertex.h"
 
 const CHAR* g_strShadowVS =
     "float4x4 gWorldLightViewProj : register(c0); "
@@ -187,7 +182,21 @@ XMMATRIX g_MatWVP;
 XMMATRIX g_MatWVP2;
 XMFLOAT4 g_RenderToggles;
 
+const DWORD g_dwRigidVertexSize = 24;
 
+// We will be double-buffering all resources.
+const DWORD g_dwBufferCount = 2;
+enum SkinningMethods
+{
+    SM_VertexShaderShadowedConstants = 0,
+    SM_VertexShaderConstantBuffer,
+    SM_VertexShaderVFetchVCache,
+    SM_VertexShaderVFetchTCache,
+    SM_VertexShaderTFetch,
+    SM_VertexShaderMemExport,
+    SM_VMX128,
+    SM_SIZEOF
+};
 BOOL g_bWidescreen = TRUE;
 const int SHADOW_SIZE = 256;
 
@@ -204,6 +213,64 @@ struct TimeInfo
 
 TimeInfo g_Time;
 float dt = 1.0f / 60.0f;
+
+//--------------------------------------------------------------------------------------
+// Name: struct ModelInfo
+// Desc: Contains all relevant information about a single model.  Each ModelInfo
+//       contains either a valid pSkinnedMesh or pStaticMesh pointer.  If the pStaticMesh
+//       pointer is valid, much of the structure will not be filled in.
+//--------------------------------------------------------------------------------------
+struct ModelInfo
+{
+    // The model from the scene hierarchy
+    ATG::Model* pModel;
+
+    // Cached information about the model
+    D3DVertexBuffer* pMeshVB;
+    D3DIndexBuffer* pMeshIB;
+    D3DVertexDeclaration* pMeshDecl;
+    DWORD dwMeshVertexCount;
+    DWORD dwMeshVertexStride;
+    DWORD dwMeshSubsetCount;
+
+    // The skinned mesh, and a binding that maps the skeleton instance to this mesh
+    ATG::SkinnedMesh* pSkinnedMesh;
+    DWORD dwSkeletonInstanceToSkinnedMeshBinding;
+
+    // The static mesh, and a binding that maps a skeleton bone to this mesh
+    ATG::StaticMesh* pStaticMesh;
+    DWORD dwSkeletonBoneToStaticMeshBinding;
+
+    // The following members are only used when pStaticMesh is NULL and pSkinnedMesh is
+    // not NULL.
+
+    // Rigid mesh vertex buffers for VMX128 skinning and memory export
+    D3DVertexBuffer* pRigidMeshVB[ g_dwBufferCount ];
+    D3DVertexDeclaration* pRigidMeshDecl;
+
+    // Memory export vertex buffer (this will point to pRigidMeshVB[0])
+    D3DVertexBuffer* pMemoryExportVB;
+
+    // Memory export constants
+    GPU_MEMEXPORT_STREAM_CONSTANT ExportConstantPosition;
+    GPU_MEMEXPORT_STREAM_CONSTANT ExportConstantNormalBinormalTangent;
+    GPU_MEMEXPORT_STREAM_CONSTANT ExportConstantTexCoord0;
+
+    // Memory allocations for bone matrix constants
+    VOID* pBoneMatrixBufferPhysical[ g_dwBufferCount ];
+    VOID* pBoneMatrixBufferVirtual;
+
+    // Vertex buffers and a vertex decl for bone matrix constants
+    D3DVertexBuffer* pBoneMatrixVB[ g_dwBufferCount ];
+    D3DVertexDeclaration* pBoneMatrixVBDecl;
+
+    // Textures for bone matrix constants
+    D3DTexture* pBoneMatrixTexture[ g_dwBufferCount ];
+
+    // Constant buffers for bone matrix constants
+    D3DConstantBuffer* pBoneMatrixConstantBuffer[ g_dwBufferCount ];
+};
+
 //--------------------------------------------------------------------------------------
 // Globals variables and definitions
 //--------------------------------------------------------------------------------------
@@ -430,7 +497,111 @@ public:
 	XMMATRIX lightProj;
 
 	XMMATRIX lightViewProj;
+
+	// Model info structs
+    ModelInfo* m_pModelInfos;
+    DWORD m_dwModelCount;
+
+    // Animation members
+    ATG::Skeleton m_Skeleton;
+    ATG::SkeletonInstance m_SkeletonInstance;
+    BOOL m_bUpdateAnimation;
+    DWORD m_dwForceUpdateCount;
+
+    // Rendering members
+    SkinningMethods m_SkinningMethod;
+    D3DVertexShader* m_pVertexShaderSkinningConstants;
+    D3DVertexShader* m_pVertexShaderSkinningVertexFetch;
+    D3DVertexShader* m_pVertexShaderSkinningVertexFetchTextureCache;
+    D3DVertexShader* m_pVertexShaderSkinningTextureFetch;
+    D3DVertexShader* m_pVertexShaderSkinningMemExport;
+    D3DVertexShader* m_pVertexShaderTransform;
+    D3DPixelShader* m_pPixelShaderSolidColor;
+    D3DPixelShader* m_pPixelShaderNormalMapping;
+    DWORD m_dwFrameCount;
+    XMFLOAT4 m_DirectionalLightDirection;
+    XMFLOAT4 m_DirectionalLightColor;
+    XMFLOAT4 m_AmbientColor;
+    DWORD m_dwInstanceCount;
+    BOOL m_bNoPixelShading;
+    DWORD m_dwDefaultPredicationMask;
+    BOOL m_bDrawScene;
+    BOOL m_bDrawSkeleton;
+    FLOAT m_fBoneRadius;
+    D3DVIEWPORT9 m_NullViewport;
+	ATG::Scene* m_pScene;
+
+//	VOID    InitializeAnimation();
+    VOID    InitializeMemExportConstants( ModelInfo* pModelInfo );
+
+ //   VOID    SetupMaterial( ModelInfo* pModelInfo, DWORD dwSubsetIndex );
+    VOID    RenderSkinnedModel( ModelInfo* pModelInfo );
+    VOID    RenderStaticModel( ModelInfo* pModelInfo );
+    VOID    RenderSkeleton();
+	ID3DXMesh* mBoneMesh;
+	std::vector<IDirect3DTexture9*> mTex;
+
+	ATG::Mesh m_Mesh;
+
+	void LoadXFile(
+	const std::string& filename, 
+	ID3DXMesh** meshOut,
+	std::vector<IDirect3DTexture9*>& texs);
 };
+
+// Initialize static variables.
+IDirect3DVertexDeclaration9* VertexPos::Decl = 0;
+IDirect3DVertexDeclaration9* VertexCol::Decl = 0;
+IDirect3DVertexDeclaration9* VertexPN::Decl  = 0;
+IDirect3DVertexDeclaration9* VertexPNT::Decl = 0;
+
+void InitAllVertexDeclarations()
+{
+	//===============================================================
+	// VertexPos
+
+	D3DVERTEXELEMENT9 VertexPosElements[] = 
+	{
+		{0, 0,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
+		D3DDECL_END()
+	};	
+	m_pd3dDevice->CreateVertexDeclaration(VertexPosElements, &VertexPos::Decl);
+
+	//===============================================================
+	// VertexCol
+
+	D3DVERTEXELEMENT9 VertexColElements[] = 
+	{
+		{0, 0,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
+		{0, 12, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_COLOR, 0},
+		D3DDECL_END()
+	};	
+	m_pd3dDevice->CreateVertexDeclaration(VertexColElements, &VertexCol::Decl);
+
+	//===============================================================
+	// VertexPN
+
+	D3DVERTEXELEMENT9 VertexPNElements[] = 
+	{
+		{0, 0,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
+		{0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0},
+		D3DDECL_END()
+	};	
+	m_pd3dDevice->CreateVertexDeclaration(VertexPNElements, &VertexPN::Decl);
+
+	//===============================================================
+	// VertexPNT
+
+	D3DVERTEXELEMENT9 VertexPNTElements[] = 
+	{
+		{0, 0,  D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0},
+		{0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL, 0},
+		{0, 24, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0},
+		D3DDECL_END()
+	};	
+	m_pd3dDevice->CreateVertexDeclaration(VertexPNTElements, &VertexPNT::Decl);
+}
+
 
 void _cdecl main()
 {
@@ -460,7 +631,12 @@ HRESULT Demo_360::Initialize()
 
 	// Confine text drawing to the title safe area
     m_Font.SetWindow( ATG::GetTitleSafeArea() );
-
+	m_bDrawSkeleton = FALSE;
+    m_bDrawScene = TRUE;
+    m_bUpdateAnimation = TRUE;
+    m_dwForceUpdateCount = 0;
+    m_SkinningMethod = SM_VertexShaderShadowedConstants;
+    m_fBoneRadius = 0.01f;
 	m_CameraRadius    = 26.0f;
 	m_CameraRotationY = 1.2 * D3DX_PI;
 	m_CameraHeight    = 3.0f;
@@ -650,7 +826,16 @@ HRESULT Demo_360::Initialize()
 
 	}
 
+	// Create scene object.
+    m_pScene = new ATG::Scene();
+    ATG::ResourceDatabase* pRDB = m_pScene->GetResourceDatabase();
 
+    // Create default textures in the resource database.
+    pRDB->CreateDefaultResources();
+
+	// Load character and animation data from a scene file.
+    ATG::SceneFileParser::LoadXATGFile( "game:\\media\\scenes\\bone.x", m_pScene, NULL,
+                                        ATG::XATGLOADER_DONOTINITIALIZEMATERIALS, NULL );
 
 
 // Create and initialize vertex buffers
@@ -772,6 +957,15 @@ HRESULT Demo_360::Initialize()
 
 	g_RenderToggles = XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f);
 
+	 // Search for 4 specific models in the scene file.
+    const WCHAR* strModelNames[] = { L"body", L"Head", L"L_eyeBall", L"R_eyeBall" };
+    m_dwModelCount = ARRAYSIZE( strModelNames );
+    m_pModelInfos = new ModelInfo[ m_dwModelCount ];
+    ZeroMemory( m_pModelInfos, m_dwModelCount * sizeof( ModelInfo ) );
+	m_Mesh.Create("game:\\Media\\scenes\\bone.xbg");
+    // Initialize animation system.
+  //  InitializeAnimation();
+
 	return S_OK;
 }
 
@@ -843,7 +1037,24 @@ HRESULT Demo_360::Update()
 //	g_InvWorld2 = XMMatrixTranspose(g_InvWorld2);
 	XMMATRIX matWVP2 = g_matWorld2 * g_matView * g_matProj;
 	g_MatWVP2 = XMMatrixTranspose( matWVP2 );
-	
+
+	D3DVERTEXELEMENT9 VertexPNTElements[] =
+	{
+		{ 0,  0, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
+		{ 0, 12, D3DDECLTYPE_FLOAT3, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL,   0 },
+		{ 0, 24, D3DDECLTYPE_FLOAT2, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+		D3DDECL_END()
+	};
+
+HRESULT hr = m_pd3dDevice->CreateVertexDeclaration(
+    VertexPNTElements,
+    &VertexPNT::Decl);
+
+if (FAILED(hr))
+{
+    OutputDebugStringA("Failed to create VertexPNT declaration\n");
+}
+
 	return S_OK;
 }
 
@@ -1097,8 +1308,10 @@ HRESULT Demo_360::Render()
         m_pd3dDevice->SetPixelShaderConstantF(18, (FLOAT*)&scene[i].DiffuseMtrl, 1);
 
         m_pd3dDevice->DrawPrimitive(D3DPT_QUADLIST, 0, 6);
+
     }
 
+	m_Mesh.Render();
     // ------------------------------------------------------------
     // UI
     // ------------------------------------------------------------
@@ -1127,3 +1340,34 @@ HRESULT Demo_360::Render()
 
     return S_OK;
 }
+
+//--------------------------------------------------------------------------------------
+// Name: RenderStaticModel()
+// Desc: Renders a static (non-skinned) model.
+//--------------------------------------------------------------------------------------
+VOID Demo_360::RenderStaticModel( ModelInfo* pModelInfo )
+{
+    assert( pModelInfo->pStaticMesh != NULL );
+
+    // Get the world transform matrix that this model is attached to.
+    // The animated world transform matrix is held by the skeleton instance.
+    XMMATRIX matWorld;
+	matWorld = XMMatrixIdentity();
+
+
+    // Set the transform only vertex shader.
+    m_pd3dDevice->SetVertexShader( m_pBoxVS );
+
+    // Compute a world * view * projection matrix for this model.
+    XMMATRIX matWVP = matWorld * g_MatWVP;
+    XMMATRIX matWVP_T = XMMatrixTranspose( matWVP );
+    m_pd3dDevice->SetVertexShaderConstantF( 0, ( FLOAT* )&matWVP_T, 4 );
+
+    // Render the mesh subsets.
+    for( DWORD i = 0; i < pModelInfo->dwMeshSubsetCount; ++i )
+    {
+     //   SetupMaterial( pModelInfo, i );
+        pModelInfo->pStaticMesh->RenderSubset( i, m_pd3dDevice );
+    }
+}
+

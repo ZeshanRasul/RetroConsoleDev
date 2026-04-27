@@ -52,6 +52,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\Test\stdafx.h" />
+    <ClInclude Include="Vertex.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\Test\stdafx.cpp" />
@@ -72,12 +73,14 @@
     </CustomBuild>
     <CustomBuild Include="Media\Fonts\Arial_16.xpr">
       <FileType>Document</FileType>
+      <DeploymentContent>true</DeploymentContent>
     </CustomBuild>
     <CustomBuild Include="Media\Textures\crate.tga">
       <FileType>Document</FileType>
     </CustomBuild>
     <CustomBuild Include="Release\Media\Fonts\Arial_16.xpr">
       <FileType>Document</FileType>
+      <DeploymentContent>true</DeploymentContent>
     </CustomBuild>
     <CustomBuild Include="Media\Textures\cube_albedo.tga">
       <FileType>Document</FileType>
