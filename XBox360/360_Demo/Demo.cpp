@@ -542,6 +542,8 @@ public:
 	std::vector<IDirect3DTexture9*> mTex;
 
 	ATG::Mesh m_Mesh;
+	ATG::Mesh m_Sphere;
+	XMMATRIX worldATGMesh;
 
 	void LoadXFile(
 	const std::string& filename, 
@@ -898,6 +900,10 @@ HRESULT Demo_360::Initialize()
 	XMMATRIX Scaling = XMMatrixScaling(20.0f, 1.0f, 20.0f);
 	g_matWorld2 = g_matWorld2 * Scaling;
 
+	worldATGMesh = XMMatrixIdentity();
+	worldATGMesh = worldATGMesh * XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+	worldATGMesh = worldATGMesh * XMMatrixScaling(5.0, 5.0, 5.0);
+
 	m_DiffuseMtrl  = XMFLOAT4(0.75f, 0.68f, 0.58f, 1.0f);
 	m_SpecularMtrl = XMFLOAT4(0.25f, 0.25f, 0.25f, 1.0f);
 	m_SpecularPower = XMFLOAT4(24.0f, 24.0f, 24.0f, 24.0f);
@@ -963,6 +969,7 @@ HRESULT Demo_360::Initialize()
     m_pModelInfos = new ModelInfo[ m_dwModelCount ];
     ZeroMemory( m_pModelInfos, m_dwModelCount * sizeof( ModelInfo ) );
 	m_Mesh.Create("game:\\Media\\scenes\\bone.xbg");
+	m_Sphere.Create("game:\\Media\\scenes\\sphere.xbg");
     // Initialize animation system.
   //  InitializeAnimation();
 
@@ -1225,6 +1232,24 @@ HRESULT Demo_360::Render()
         m_pd3dDevice->DrawPrimitive(D3DPT_QUADLIST, 0, 6);
     }
 
+
+    XMMATRIX shadowMtx = worldATGMesh * lightViewProj;
+    shadowMtx = XMMatrixTranspose(shadowMtx);
+
+
+    m_pd3dDevice->SetVertexShaderConstantF(0, (FLOAT*)&shadowMtx, 4);
+
+
+
+	m_Mesh.Render();
+
+
+	m_pd3dDevice->SetPixelShaderConstantF(10, (FLOAT*)&XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f), 1);
+	m_pd3dDevice->SetPixelShaderConstantF(12, (FLOAT*)&XMFLOAT4(8.0f, 8.0f, 8.0f, 8.0f), 1);
+    m_pd3dDevice->SetPixelShaderConstantF(18, (FLOAT*)&XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f), 1);
+
+	m_Sphere.Render();
+
     m_pd3dDevice->Resolve(
         0,
         NULL,
@@ -1311,7 +1336,33 @@ HRESULT Demo_360::Render()
 
     }
 
+	
+	XMMATRIX wvp = worldATGMesh * g_matView * g_matProj;
+    wvp = XMMatrixTranspose(wvp);
+
+    XMMATRIX invWorld = XMMatrixInverse(&XMMatrixDeterminant(worldATGMesh), worldATGMesh);
+
+    shadowMtx = worldATGMesh * lightViewProj;
+    shadowMtx = XMMatrixTranspose(shadowMtx);
+
+	m_pd3dDevice->SetTexture(0, NULL);
+    m_pd3dDevice->SetTexture(1, NULL);
+
+	m_pd3dDevice->SetVertexShaderConstantF(0,  (FLOAT*)&wvp, 4);
+    m_pd3dDevice->SetVertexShaderConstantF(6,  (FLOAT*)&invWorld, 4);
+    m_pd3dDevice->SetVertexShaderConstantF(14, (FLOAT*)&worldATGMesh, 4);
+    m_pd3dDevice->SetVertexShaderConstantF(22, (FLOAT*)&shadowMtx, 4);
+
+
+
 	m_Mesh.Render();
+
+
+	m_pd3dDevice->SetPixelShaderConstantF(10, (FLOAT*)&XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f), 1);
+	m_pd3dDevice->SetPixelShaderConstantF(12, (FLOAT*)&XMFLOAT4(8.0f, 8.0f, 8.0f, 8.0f), 1);
+    m_pd3dDevice->SetPixelShaderConstantF(18, (FLOAT*)&XMFLOAT4(1.0f, 0.0f, 0.0f, 0.0f), 1);
+
+	m_Sphere.Render();
     // ------------------------------------------------------------
     // UI
     // ------------------------------------------------------------
